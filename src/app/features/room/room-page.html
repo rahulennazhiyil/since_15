@@ -92,8 +92,8 @@
           <app-mode-selector [mode]="couple.mode()" [disabled]="couple.busy()" (modeChange)="setMode($event)" />
           @if (showLayouts()) {
             <div class="layouts" role="radiogroup" aria-label="Frame">
-              @for (l of layoutChoices; track l.id) {
-                <button appChip role="radio" [selected]="l.id === couple.layout()" [attr.aria-checked]="l.id === couple.layout()" [disabled]="couple.busy()" (click)="onLayout(l.id)">
+              @for (l of layoutChoices(); track l.id) {
+                <button appChip role="radio" [selected]="l.id === currentLayoutId()" [attr.aria-checked]="l.id === currentLayoutId()" [disabled]="couple.busy()" (click)="onLayout(l.id)">
                   {{ l.name }}
                 </button>
               }
@@ -147,8 +147,8 @@
         [filters]="catalog.all()"
         [filter]="couple.filter()"
         [thumbSource]="couple.revealThumb()"
-        [layouts]="showLayouts() ? layoutChoices : []"
-        [layoutId]="couple.layout()"
+        [layouts]="showLayouts() ? layoutChoices() : []"
+        [layoutId]="currentLayoutId()"
         [note]="revealNote()"
         [busy]="couple.recomposing()"
         (filterChange)="onFilter($event)"

@@ -1,5 +1,6 @@
 import { Subject, Subscription, type Observable } from 'rxjs';
 import { uid } from '../../shared/utils/id';
+import type { SceneState } from '../scene/scene.model';
 import type { BoothMessage } from '../webrtc/booth-messages';
 import type { DataChannelBus } from '../webrtc/data-channel';
 import type { BoothMode } from './booth-session';
@@ -17,6 +18,10 @@ export interface CaptureSchedule extends CaptureRequest {
   fireAt: number;
   filterId: string;
   layoutId: string;
+  /** Both devices cut people out and compose one shared scene. */
+  together: boolean;
+  /** The host's scene at the moment of scheduling; both compose from exactly this. */
+  scene: SceneState | null;
 }
 
 export interface CoordinatorDeps {
@@ -29,6 +34,8 @@ export interface CoordinatorDeps {
   /** The shared settings at the moment of scheduling. */
   currentFilterId: () => string;
   currentLayoutId: () => string;
+  together: () => boolean;
+  currentScene: () => SceneState;
 }
 
 /** Network head start so both sides see the full countdown even with a slow link. */
@@ -79,12 +86,15 @@ export class CaptureCoordinator {
 
   /** Without a partner (channel closed) the schedule still runs locally. */
   private schedule(params: CaptureRequest): void {
+    const together = this.deps.together();
     const schedule: CaptureSchedule = {
       ...params,
       captureId: uid('cap'),
       fireAt: this.deps.toHostTime(this.deps.now()) + params.countdownMs + SCHEDULE_LEAD_MS,
       filterId: this.deps.currentFilterId(),
       layoutId: this.deps.currentLayoutId(),
+      together,
+      scene: together ? this.deps.currentScene() : null,
     };
     this.deps.bus()?.send({ type: 'capture:scheduled', ...schedule, mode: schedule.mode });
     this.scheduled.next(schedule);
@@ -108,6 +118,8 @@ export class CaptureCoordinator {
             mode: m.mode as BoothMode,
             filterId: m.filterId,
             layoutId: m.layoutId,
+            together: m.together,
+            scene: m.scene,
           });
         }
         break;

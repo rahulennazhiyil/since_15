@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SCENE } from '../scene/scene.model';
 import type { BoothMessage } from '../webrtc/booth-messages';
 import type { DataChannelBus } from '../webrtc/data-channel';
 import { CaptureCoordinator, type CaptureSchedule } from './capture-coordinator';
@@ -23,6 +24,8 @@ function make(bus: DataChannelBus | null, isHost: boolean, now: () => number, of
     toHostTime: (t) => t + offset,
     currentFilterId: () => 'film',
     currentLayoutId: () => 'pairPolaroid',
+    together: () => false,
+    currentScene: () => DEFAULT_SCENE,
   });
 }
 

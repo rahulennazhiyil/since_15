@@ -1,12 +1,20 @@
-import { DestroyRef, Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { CameraService } from '../../core/camera/camera.service';
 import { RoomService } from '../../core/room/room.service';
+import { SegmentationService } from '../../core/segmentation/segmentation.service';
 import { ClockSync } from '../../core/webrtc/clock-sync';
 import type { DataChannelBus } from '../../core/webrtc/data-channel';
 import { PeerConnectionService } from '../../core/webrtc/peer-connection.service';
 
 const CLOCK_RESYNC_MS = 60_000;
+/** A partner that never says what it can do is treated as an older client. */
+const CAPS_TIMEOUT_MS = 2000;
+
+export interface PeerCaps {
+  segmentation: boolean;
+  mirrored: boolean;
+}
 
 /**
  * Glue between room presence, the local camera and the peer connection. Provided by the
@@ -15,23 +23,34 @@ const CLOCK_RESYNC_MS = 60_000;
  * - partner present + camera live  -> open the peer connection
  * - partner gone                    -> close it
  * - camera stream swapped (flip)    -> replace outgoing tracks
- * - data channel open               -> exchange mic state, sync clocks (guest to host)
+ * - data channel open               -> exchange mic state and capabilities, sync clocks
  */
 @Injectable()
 export class RoomMediaService {
   private readonly room = inject(RoomService);
   private readonly camera = inject(CameraService);
+  private readonly segmentation = inject(SegmentationService);
   readonly peer = inject(PeerConnectionService);
 
   /** Host clock minus local clock, in ms. Zero on the host. */
   readonly clockOffset = signal(0);
   readonly clockRtt = signal(0);
   readonly partnerMicOn = signal(true);
+  /** What the partner's device told us it can do; null until it says. */
+  readonly peerCaps = signal<PeerCaps | null>(null);
+
+  /** This device can cut people out (cheap check now, confirmed once the model loads). */
+  readonly localSegmentation = computed(() => this.segmentation.supported && this.segmentation.status() !== 'unsupported');
+  /** Both devices can cut people out, so the room shows one shared scene. */
+  readonly together = computed(() => this.localSegmentation() && this.peerCaps()?.segmentation === true);
+  /** How the partner's camera is shown to them (and how their frames arrive). */
+  readonly partnerMirrored = computed(() => this.peerCaps()?.mirrored ?? false);
 
   private activePeerId: string | null = null;
   private busSubscription: Subscription | null = null;
   private stopServing: (() => void) | null = null;
   private resyncTimer: ReturnType<typeof setInterval> | null = null;
+  private capsTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     effect(() => {
@@ -70,6 +89,15 @@ export class RoomMediaService {
       untracked(() => this.peer.bus()?.send({ type: 'mic', enabled }));
     });
 
+    // Capabilities change when the camera flips or the model turns out not to run here.
+    effect(() => {
+      const segmentation = this.localSegmentation();
+      const mirrored = this.camera.mirrored();
+      untracked(() => {
+        if (this.peer.channelOpen()) this.peer.bus()?.send({ type: 'caps', v: 1, segmentation, mirrored });
+      });
+    });
+
     inject(DestroyRef).onDestroy(() => {
       this.onBus(null);
       this.activePeerId = null;
@@ -93,14 +121,26 @@ export class RoomMediaService {
     this.stopServing = null;
     if (this.resyncTimer) clearInterval(this.resyncTimer);
     this.resyncTimer = null;
+    if (this.capsTimer) clearTimeout(this.capsTimer);
+    this.capsTimer = null;
+    this.peerCaps.set(null);
     if (!bus) return;
 
     const sync = new ClockSync(bus);
     this.stopServing = sync.serve();
     this.busSubscription = bus.messages$.subscribe((m) => {
       if (m.type === 'mic') this.partnerMicOn.set(m.enabled);
+      if (m.type === 'caps') {
+        if (this.capsTimer) clearTimeout(this.capsTimer);
+        this.capsTimer = null;
+        this.peerCaps.set({ segmentation: m.segmentation, mirrored: m.mirrored });
+      }
     });
     bus.send({ type: 'mic', enabled: this.camera.micEnabled() });
+    bus.send({ type: 'caps', v: 1, segmentation: this.localSegmentation(), mirrored: this.camera.mirrored() });
+    this.capsTimer = setTimeout(() => {
+      if (!this.peerCaps()) this.peerCaps.set({ segmentation: false, mirrored: false });
+    }, CAPS_TIMEOUT_MS);
 
     if (!this.room.isHost()) {
       const measure = (): void => {

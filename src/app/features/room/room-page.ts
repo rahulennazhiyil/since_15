@@ -22,7 +22,7 @@ import { ERROR_COPY } from '../../core/errors/error-copy';
 import { FilterCatalog } from '../../core/filters/filter-catalog.service';
 import type { FilterDefinition } from '../../core/filters/filter.model';
 import { THUMBNAIL_EDGE, ThumbnailSource } from '../../core/filters/thumbnail-source';
-import { LAYOUTS, PAIR_LAYOUT_CHOICES, type LayoutId } from '../../core/photo/layouts';
+import { LAYOUTS, PAIR_LAYOUT_CHOICES, TOGETHER_LAYOUT_CHOICES, type LayoutId } from '../../core/photo/layouts';
 import { ProfileService } from '../../core/profile/profile.service';
 import { RoomService } from '../../core/room/room.service';
 import { Announcer } from '../../shared/a11y/announcer.service';
@@ -52,6 +52,7 @@ import { ParticipantView } from './participant-view';
 import { RoomHeader } from './room-header';
 import { RoomMediaService } from './room-media.service';
 import { RoomWaiting } from './room-waiting';
+import { SceneSync } from './scene-sync.service';
 
 const THUMBNAIL_REFRESH_MS = 3000;
 /** Gap between strip shots in a room; long enough for a visible countdown. */
@@ -66,7 +67,7 @@ const BURST_INTERVAL_MS = 650;
 @Component({
   selector: 'app-room-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [RoomMediaService, CoupleSession],
+  providers: [RoomMediaService, CoupleSession, SceneSync],
   imports: [
     RouterLink,
     Button,
@@ -102,6 +103,7 @@ export class RoomPage {
   protected readonly profile = inject(ProfileService);
   protected readonly media = inject(RoomMediaService);
   protected readonly couple = inject(CoupleSession);
+  protected readonly sceneSync = inject(SceneSync);
   protected readonly catalog = inject(FilterCatalog);
   private readonly sound = inject(SoundService);
   private readonly toast = inject(ToastService);
@@ -128,7 +130,9 @@ export class RoomPage {
     return err ? err.userMessage : ERROR_COPY['room-ended'];
   });
   protected readonly canShoot = computed(() => this.room.status() === 'connected' && this.media.peer.isConnected() && !this.couple.busy());
-  protected readonly layoutChoices = PAIR_LAYOUT_CHOICES.map((id) => ({ id, name: LAYOUTS[id].name }));
+  /** Frames: one merged picture in the shared scene, two tiles in the classic view. */
+  protected readonly layoutChoices = computed(() => (this.media.together() ? TOGETHER_LAYOUT_CHOICES : PAIR_LAYOUT_CHOICES).map((id) => ({ id, name: LAYOUTS[id].name })));
+  protected readonly currentLayoutId = computed(() => (this.media.together() ? this.sceneSync.scene().layoutId : this.couple.layout()));
   protected readonly showLayouts = computed(() => this.couple.mode() === 'single');
   protected readonly revealNote = computed(() =>
     this.couple.photoQuality() === 'preview' ? 'A sharper copy of your person’s side is still on its way.' : null,
@@ -141,6 +145,8 @@ export class RoomPage {
     toHostTime: (t) => this.media.toHostTime(t),
     currentFilterId: () => this.couple.filter().id,
     currentLayoutId: () => this.couple.layout(),
+    together: () => this.media.together(),
+    currentScene: () => this.sceneSync.scene(),
   });
   private busSubscription: Subscription | null = null;
 
@@ -210,7 +216,18 @@ export class RoomPage {
       this.couple.setMode(schedule.mode);
       this.couple.filter.set(this.catalog.find(schedule.filterId));
       if (schedule.layoutId in LAYOUTS) this.couple.layout.set(schedule.layoutId as LayoutId);
+      // Both devices compose from the host's snapshot of the scene.
+      if (schedule.together && schedule.scene) this.sceneSync.applyFull(schedule.scene);
       void this.couple.run(schedule);
+    });
+
+    // Incoming scene edits wait while a photo is being taken; afterwards they re-render the reveal.
+    effect(() => this.sceneSync.locked.set(this.couple.busy()));
+    effect(() => {
+      const scene = this.sceneSync.scene();
+      untracked(() => {
+        if (this.couple.reviewingScene()) this.couple.setScene(scene);
+      });
     });
     this.coordinator.cancelled$.subscribe((id) => {
       if (this.couple.activeCaptureId() === id) this.couple.cancel();
@@ -277,6 +294,10 @@ export class RoomPage {
   }
 
   protected onLayout(layout: LayoutId): void {
+    if (this.media.together()) {
+      this.sceneSync.setFrame(layout);
+      return;
+    }
     this.couple.setLayout(layout);
     this.media.peer.bus()?.send({ type: 'layout', layoutId: layout });
   }
