@@ -69,8 +69,11 @@
     [(open)]="backgroundOpen"
     [selectedId]="session.scene().backgroundId"
     [fx]="session.scene().fx"
+    [allowUpload]="true"
+    [custom]="customTiles()"
     (backgroundChange)="onBackground($event)"
     (fxChange)="onFx($event)"
+    (upload)="onUpload($event)"
   />
 
   @if (session.phase() === 'review' && session.photo(); as photo) {

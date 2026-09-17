@@ -4,7 +4,7 @@ import { environment } from '../../../environments/environment';
 import { BoothSession } from '../../core/booth/booth-session';
 import { SoundService } from '../../core/booth/sound.service';
 import { CameraService } from '../../core/camera/camera.service';
-import { AppError } from '../../core/errors/app-error';
+import { AppError, toAppError } from '../../core/errors/app-error';
 import { FilterCatalog } from '../../core/filters/filter-catalog.service';
 import type { FilterDefinition } from '../../core/filters/filter.model';
 import { THUMBNAIL_EDGE, ThumbnailSource } from '../../core/filters/thumbnail-source';
@@ -12,6 +12,7 @@ import { ProfileService } from '../../core/profile/profile.service';
 import { NO_BACKGROUND_ID } from '../../core/scene/background-catalog';
 import type { BackgroundFx } from '../../core/scene/scene.model';
 import { SegmentationService } from '../../core/segmentation/segmentation.service';
+import { BackgroundStore } from '../../core/storage/background-store';
 import { CustomFilterStore } from '../../core/storage/custom-filter-store';
 import type { PhotoMeta } from '../../core/storage/photo-store';
 import { IconButton } from '../../shared/ui/icon-button';
@@ -81,6 +82,10 @@ export class BoothPage {
   protected readonly sessionId = uid('s');
   protected readonly viewing = signal<PhotoMeta | null>(null);
   protected readonly backgroundOpen = signal(false);
+  protected readonly backgrounds = inject(BackgroundStore);
+  /** Object URLs for the user's own background photos, for the picker tiles. */
+  protected readonly customTiles = signal<{ id: string; url: string }[]>([]);
+  protected readonly importing = signal(false);
 
   /** Backgrounds are offered only where the on-device model can run. */
   protected readonly backgroundsAvailable = computed(() => this.segmentation.supported && this.segmentation.status() !== 'unsupported');
@@ -96,6 +101,15 @@ export class BoothPage {
     effect(() => {
       const error = this.session.error();
       if (error) this.toast.error(error);
+    });
+
+    // The user's own background photos, as picker tiles.
+    void this.backgrounds.load();
+    effect(() => {
+      const mine = this.backgrounds.mine();
+      void Promise.all(mine.map(async (b) => ({ id: b.id, url: (await this.backgrounds.urlFor(b.id)) ?? '' }))).then((tiles) =>
+        this.customTiles.set(tiles.filter((t) => t.url)),
+      );
     });
 
     // If the model turns out not to run here, fall back to the plain camera and say so once.
@@ -165,6 +179,21 @@ export class BoothPage {
 
   protected onFx(fx: BackgroundFx): void {
     this.session.setScene({ fx });
+  }
+
+  /** "Your photo": store it on this device and use it straight away. */
+  protected async onUpload(file: File): Promise<void> {
+    if (this.importing()) return;
+    this.importing.set(true);
+    try {
+      const stored = await this.backgrounds.importFile(file);
+      this.session.setBackground(stored.id);
+      this.toast.success('Background added');
+    } catch (error) {
+      this.toast.error(toAppError(error, 'photo-failed'));
+    } finally {
+      this.importing.set(false);
+    }
   }
 
   protected onPlacement(event: PlacementEvent): void {

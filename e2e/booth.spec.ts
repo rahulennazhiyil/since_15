@@ -145,9 +145,20 @@ test.describe('solo booth', () => {
     expect(photo.corner[2]).toBeGreaterThan(photo.corner[1] + 20); // purple-ish neon wall, not camera bars
     expect(photo.person.reduce((a, b) => a + b, 0)).toBeGreaterThan(450); // bright fake-camera pixels
 
-    // Back to "My room" restores the plain camera view
+    // Your own photo: stored on the device, used at once, still there after a reload
     await page.click('button[aria-label="Back to camera"]');
     await page.click('button[aria-label="Background"]');
+    await page.locator('app-background-sheet input[type=file]').setInputFiles('public/backgrounds/thumbs/studio-sage.jpg');
+    await expect(page.locator('app-toasts')).toContainText('Background added');
+    await expect.poll(() => page.evaluate(() => document.querySelector<HTMLElement>('app-scene-stage .bg')!.style.backgroundImage)).toContain('blob:');
+    await expect(page.locator('app-background-sheet .tile.selected img[alt=""]')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await startCamera(page);
+    await page.click('button[aria-label="Background"]');
+    await expect(page.locator('app-background-sheet .tile:has(img[alt=""])')).toHaveCount(1);
+
+    // Back to "My room" restores the plain camera view
     await page.click('app-background-sheet button.none');
     await page.keyboard.press('Escape');
     await expect(page.locator('app-camera-view')).toBeVisible();

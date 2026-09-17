@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { RouterLink } from '@angular/router';
 import { toAppError } from '../../core/errors/app-error';
 import { clearBoothDb } from '../../core/storage/db';
+import { BackgroundStore } from '../../core/storage/background-store';
 import { PhotoStore } from '../../core/storage/photo-store';
 import { StorageService } from '../../core/storage/storage.service';
 import { PageShell } from '../../shared/layout/page-shell';
@@ -69,8 +70,8 @@ import { ToastService } from '../../shared/ui/toast.service';
 
         <h2>Clear everything</h2>
         <p>
-          This removes every photo, custom filter and preference from this browser. Photos you have
-          downloaded are not affected.
+          This removes every photo, custom filter, background photo and preference from this browser.
+          Photos you have downloaded are not affected.
         </p>
         <p><button appButton variant="danger" (click)="confirm.set(true)">Clear my data</button></p>
 
@@ -82,8 +83,8 @@ import { ToastService } from '../../shared/ui/toast.service';
 
     <app-sheet title="Clear everything on this device?" [(open)]="confirm">
       <p class="muted" style="margin-bottom: var(--space-5)">
-        {{ photos.count() }} photo{{ photos.count() === 1 ? '' : 's' }}, your custom filters and your preferences will be
-        removed from this browser. This cannot be undone.
+        {{ photos.count() }} photo{{ photos.count() === 1 ? '' : 's' }}, your custom filters, background photos and
+        preferences will be removed from this browser. This cannot be undone.
       </p>
       <div class="cluster" style="justify-content: flex-end">
         <button appButton variant="ghost" (click)="confirm.set(false)">Keep everything</button>
@@ -94,6 +95,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 })
 export class Privacy {
   protected readonly photos = inject(PhotoStore);
+  private readonly backgrounds = inject(BackgroundStore);
   private readonly storage = inject(StorageService);
   private readonly toast = inject(ToastService);
   private readonly document = inject(DOCUMENT);
@@ -110,6 +112,7 @@ export class Privacy {
       await clearBoothDb();
       this.storage.clearAll();
       this.photos.resetAfterWipe();
+      this.backgrounds.resetAfterWipe();
       this.toast.success('Everything on this device was cleared');
       // Reload so every in-memory preference (theme, name, filters) starts fresh.
       setTimeout(() => this.document.location.assign('/'), 600);
