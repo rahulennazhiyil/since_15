@@ -11,7 +11,8 @@ test.describe('rooms', () => {
     await host.click('app-share-invite button[appButton]:has-text("Copy invite link")');
     expect(await host.evaluate(() => navigator.clipboard.readText())).toContain(`/room/${code}`);
 
-    const guest = await joinRoom(context, code);
+    // The guest's device cannot cut people out: both fall back to the classic two tiles.
+    const guest = await joinRoom(context, code, 'Sam', 'none');
     watchConsole(guest, errors, 'guest');
     await expect(host.locator('app-connection-indicator')).toContainText('Connected');
     await expect(guest.locator('app-connection-indicator')).toContainText('Connected');
@@ -27,6 +28,9 @@ test.describe('rooms', () => {
     }
     await waitForDataChannel(host);
     await waitForDataChannel(guest);
+    await expect(host.locator('app-participant-view')).toBeVisible();
+    expect(await host.locator('app-scene-stage').count()).toBe(0);
+    await expect(host.locator('app-toasts')).toContainText('side by side');
 
     // Mic state travels
     await host.click('button[aria-label="Mute microphone"]');

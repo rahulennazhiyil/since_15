@@ -49,22 +49,50 @@
         <app-room-waiting [code]="normalizedCode()" />
       }
       @default {
-        <div class="stage">
-          <app-camera-view class="tile mine" [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="couple.filter()" />
-          @if (room.partner(); as p) {
-            <app-participant-view
-              class="tile"
-              [participant]="p"
-              [stream]="media.peer.remoteStream()"
-              [state]="media.peer.state()"
-              [micOn]="media.partnerMicOn()"
-              (retry)="media.peer.restart()"
-            />
+        <div class="stage" [class.together]="media.together()">
+          @if (media.together()) {
+            <!-- One shared scene: both people cut out of their cameras over the same background. -->
+            <app-scene-stage
+              [localStream]="camera.stream()"
+              [localMirrored]="camera.mirrored()"
+              [remoteStream]="media.peer.remoteStream()"
+              [remoteMirrored]="media.partnerMirrored()"
+              [selfRole]="selfRole()"
+              [scene]="sceneSync.scene()"
+              [filter]="couple.filter()"
+              [paused]="couple.busy()"
+              [interactive]="!couple.busy()"
+              (placementChange)="onPlacement($event)"
+              (placementCommit)="onPlacementCommit($event)"
+              (frontChange)="sceneSync.setFront($event)"
+            >
+              @if (room.partner(); as p) {
+                <app-participant-badge
+                  [participant]="p"
+                  [state]="media.peer.state()"
+                  [hasVideo]="media.peer.remoteStream() !== null"
+                  [micOn]="media.partnerMicOn()"
+                  (retry)="media.peer.restart()"
+                />
+              }
+            </app-scene-stage>
           } @else {
-            <div class="tile partner away">
-              <span class="small">Your person left the room</span>
-              <span class="small muted">The room stays open in case they come back.</span>
-            </div>
+            <app-camera-view class="tile mine" [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="couple.filter()" />
+            @if (room.partner(); as p) {
+              <app-participant-view
+                class="tile"
+                [participant]="p"
+                [stream]="media.peer.remoteStream()"
+                [state]="media.peer.state()"
+                [micOn]="media.partnerMicOn()"
+                (retry)="media.peer.restart()"
+              />
+            } @else {
+              <div class="tile partner away">
+                <span class="small">Your person left the room</span>
+                <span class="small muted">The room stays open in case they come back.</span>
+              </div>
+            }
           }
           <app-flash-overlay [token]="couple.flashToken()" />
           <app-countdown-overlay
@@ -89,6 +117,14 @@
         <app-memory-wall [sessionId]="sessionId" (open)="viewing.set($event)" />
 
         <div class="options">
+          @if (media.together()) {
+            <div class="scene-actions">
+              <button appChip [selected]="sceneActive()" [disabled]="couple.busy()" (click)="backgroundOpen.set(true)">
+                <app-icon name="image" [size]="16" /> Background
+              </button>
+              <button appChip [disabled]="couple.busy()" (click)="arrangeOpen.set(true)"><app-icon name="layers" [size]="16" /> Arrange</button>
+            </div>
+          }
           <app-mode-selector [mode]="couple.mode()" [disabled]="couple.busy()" (modeChange)="setMode($event)" />
           @if (showLayouts()) {
             <div class="layouts" role="radiogroup" aria-label="Frame">
@@ -139,6 +175,30 @@
     <app-sheet title="Together" [(open)]="activitiesOpen">
       <app-activity-host />
     </app-sheet>
+
+    <app-background-sheet
+      [(open)]="backgroundOpen"
+      [selectedId]="sceneSync.scene().backgroundId"
+      [fx]="sceneSync.scene().fx"
+      [allowUpload]="true"
+      [custom]="customTiles()"
+      (backgroundChange)="onBackground($event)"
+      (fxChange)="onFx($event)"
+      (upload)="onUpload($event)"
+    />
+
+    <app-arrange-sheet
+      [(open)]="arrangeOpen"
+      [scene]="sceneSync.scene()"
+      [selfRole]="selfRole()"
+      selfName="You"
+      [partnerName]="partnerName()"
+      (arrange)="onArrange()"
+      (swap)="sceneSync.swapSides()"
+      (reset)="sceneSync.resetPlacements()"
+      (frontChange)="sceneSync.setFront($event)"
+      (flipChange)="onFlip($event)"
+    />
 
     @if (couple.phase() === 'review' && couple.photo(); as photo) {
       <app-photo-reveal

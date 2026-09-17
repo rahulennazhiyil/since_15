@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { startCamera, watchConsole } from './helpers';
+import { startCamera, useFakeSegmenter, watchConsole } from './helpers';
 
 test('custom filters: create, use in the booth, duplicate, delete, persist', async ({ page }) => {
   const errors: string[] = [];
   watchConsole(page, errors);
+  await useFakeSegmenter(page);
 
   await page.goto('/filters');
   await expect(page.getByText('Nothing here yet')).toBeVisible();

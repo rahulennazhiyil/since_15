@@ -9,7 +9,7 @@ import { PeerConnectionService } from '../../core/webrtc/peer-connection.service
 
 const CLOCK_RESYNC_MS = 60_000;
 /** A partner that never says what it can do is treated as an older client. */
-const CAPS_TIMEOUT_MS = 2000;
+const CAPS_TIMEOUT_MS = 4000;
 
 export interface PeerCaps {
   segmentation: boolean;
@@ -133,7 +133,10 @@ export class RoomMediaService {
       if (m.type === 'caps') {
         if (this.capsTimer) clearTimeout(this.capsTimer);
         this.capsTimer = null;
+        const first = this.peerCaps() === null;
         this.peerCaps.set({ segmentation: m.segmentation, mirrored: m.mirrored });
+        // Our own announcement may have gone out before they were listening: answer once.
+        if (first) bus.send({ type: 'caps', v: 1, segmentation: this.localSegmentation(), mirrored: this.camera.mirrored() });
       }
     });
     bus.send({ type: 'mic', enabled: this.camera.micEnabled() });

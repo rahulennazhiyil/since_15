@@ -5,9 +5,9 @@ import { FakeSegmenter } from './fake-segmenter';
 import { detectSegmentationSupport } from './segmentation-support';
 import type { PersonSegmenter, SegmentationStatus, SegmenterKind } from './segmenter';
 
-/** Development-only override: `fake` for tests, `cpu` to force the CPU delegate. */
+/** Development-only override: `fake` for tests, `cpu`/`gpu` to force a delegate, `none` to act unsupported. */
 export const DEV_SEGMENTER_KEY = `${STORAGE_PREFIX}dev:segmenter`;
-type DevMode = 'fake' | 'cpu' | 'gpu' | null;
+type DevMode = 'fake' | 'cpu' | 'gpu' | 'none' | null;
 
 /**
  * Owns the single segmenter instance for the whole app. Loading is lazy, idempotent and
@@ -26,7 +26,9 @@ export class SegmentationService {
 
   /** True once we know this device can run the model (or has been told to fake it). */
   get supported(): boolean {
-    return devMode() === 'fake' || detectSegmentationSupport().ok;
+    const mode = devMode();
+    if (mode === 'none') return false;
+    return mode === 'fake' || detectSegmentationSupport().ok;
   }
 
   current(): PersonSegmenter | null {
@@ -93,7 +95,7 @@ function devMode(): DevMode {
   if (environment.production) return null;
   try {
     const value = localStorage.getItem(DEV_SEGMENTER_KEY);
-    return value === 'fake' || value === 'cpu' || value === 'gpu' ? value : null;
+    return value === 'fake' || value === 'cpu' || value === 'gpu' || value === 'none' ? value : null;
   } catch {
     return null;
   }

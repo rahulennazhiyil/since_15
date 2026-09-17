@@ -5,6 +5,7 @@ test.describe('solo booth', () => {
   test('capture, filter, re-filter, save, strip, memories and cleanup', async ({ page, context }) => {
     const errors: string[] = [];
     watchConsole(page, errors);
+    await useFakeSegmenter(page);
 
     await page.goto('/booth');
     await expect(page.locator('app-camera-permission-intro')).toBeVisible();

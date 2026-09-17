@@ -76,8 +76,8 @@ const MAX_BLUR_PX = 24;
     <div
       #scene
       class="scene"
-      [style.aspect-ratio]="aspectCss()"
-      [style.--ar]="arValue()"
+      [style.width.px]="sceneBox()?.width"
+      [style.height.px]="sceneBox()?.height"
       [style.filter]="canvasMode() ? null : cssFilter()"
       (pointerdown)="onPointerDown($event)"
       (pointermove)="onPointerMove($event)"
@@ -107,6 +107,7 @@ const MAX_BLUR_PX = 24;
       @if (statusLabel(); as label) {
         <div class="status" role="status">{{ label }}</div>
       }
+      <ng-content />
     </div>
     <video #local class="src" muted playsinline autoplay></video>
     <video #remote class="src" playsinline autoplay></video>
@@ -115,15 +116,13 @@ const MAX_BLUR_PX = 24;
     :host {
       display: block;
       position: relative;
-      container-type: size;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
     }
-    /* Fills the width, or the height when that is the tighter constraint. */
+    /* Sized in code from the host's box: fills the width, or the height when that is tighter. */
     .scene {
       position: relative;
-      width: min(100%, calc(100cqh * var(--ar, 0.8)));
       margin: 0 auto;
       overflow: hidden;
       background: #1c1a20;
@@ -212,8 +211,16 @@ export class SceneStage {
   protected readonly cssFilter = computed(() => toCssFilter(this.filter().adjustments));
   protected readonly canvasMode = computed(() => needsCanvasPreview(this.filter()));
   protected readonly sceneSize = computed(() => sceneSizeOf(this.scene().layoutId));
-  protected readonly aspectCss = computed(() => `${this.sceneSize().width} / ${this.sceneSize().height}`);
-  protected readonly arValue = computed(() => (this.sceneSize().width / this.sceneSize().height).toFixed(4));
+  /** The host's content box, kept fresh by a ResizeObserver. */
+  private readonly hostSize = signal<Size>({ width: 0, height: 0 });
+  /** Scene rectangle in CSS pixels: as wide as possible without overflowing the host's height. */
+  protected readonly sceneBox = computed<Size | null>(() => {
+    const { width, height } = this.hostSize();
+    if (width <= 0) return null;
+    const ar = this.sceneSize().width / this.sceneSize().height;
+    const w = height > 0 ? Math.min(width, height * ar) : width;
+    return { width: Math.floor(w), height: Math.floor(w / ar) };
+  });
   protected readonly bgUrl = signal<string | null>(null);
   protected readonly bgCss = computed(() => (this.bgUrl() ? `url("${this.bgUrl()}")` : null));
   protected readonly bgFilter = computed(() => {
@@ -278,17 +285,24 @@ export class SceneStage {
       void this.backgrounds.resolve(id).then((bmp) => (this.bgBitmap = bmp));
     });
 
+    // The people canvas renders at the displayed size (capped device pixel ratio).
     effect(() => {
       const el = this.peopleRef().nativeElement;
       const size = this.sceneSize();
+      const box = this.sceneBox();
       const dpr = Math.min(1.5, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1);
-      const rect = el.getBoundingClientRect();
-      const target = fitWithin(size.width, size.height, Math.max(320, Math.round(Math.max(rect.width, rect.height) * dpr)));
+      const edge = box ? Math.max(box.width, box.height) * dpr : 320;
+      const target = fitWithin(size.width, size.height, Math.max(320, Math.round(edge)));
       if (el.width !== target.width || el.height !== target.height) {
         el.width = target.width;
         el.height = target.height;
       }
     });
+
+    const host = inject(ElementRef<HTMLElement>).nativeElement;
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => this.onHostResize(entries[0]?.contentRect ?? host.getBoundingClientRect())) : null;
+    observer?.observe(host);
+    this.onHostResize(host.getBoundingClientRect());
 
     const onVisibility = (): void => (document.hidden ? this.stopLoop() : this.startLoop());
     document.addEventListener('visibilitychange', onVisibility);
@@ -296,6 +310,7 @@ export class SceneStage {
 
     inject(DestroyRef).onDestroy(() => {
       this.stopLoop();
+      observer?.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       this.localRef().nativeElement.srcObject = null;
       this.remoteRef().nativeElement.srcObject = null;
@@ -318,6 +333,13 @@ export class SceneStage {
   /** Frame sizes and body boxes of everyone currently visible, for auto-arrange. */
   arrangeInputs(): ArrangeInput[] {
     return this.presentSources().map((s) => ({ role: s.role, frame: videoSize(s.video), bbox: s.bbox }));
+  }
+
+  private onHostResize(rect: { width: number; height: number }): void {
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+    const current = this.hostSize();
+    if (current.width !== width || current.height !== height) this.hostSize.set({ width, height });
   }
 
   private makeSource(role: PersonRole, video: HTMLVideoElement, mirrored: boolean, intervalMs: number): SourceState {

@@ -48,6 +48,21 @@
     max-height: 42dvh;
   }
 
+  // One shared scene instead of two tiles; it keeps its own aspect ratio in the space.
+  &.together {
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--gutter);
+    // Flex space can run out under the rails; the scene always keeps a usable height.
+    min-height: min(24rem, 50dvh);
+
+    app-scene-stage {
+      flex: 1;
+      min-height: 0;
+      --radius-scene: var(--radius-xl);
+    }
+  }
+
   app-flash-overlay,
   app-countdown-overlay,
   .processing {
@@ -106,6 +121,17 @@
   padding: var(--space-3) var(--gutter) 0;
 }
 
+.scene-actions {
+  display: flex;
+  gap: var(--space-2);
+
+  [appChip] {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+}
+
 .layouts {
   display: flex;
   gap: var(--space-2);
@@ -140,6 +166,10 @@
     &.single {
       grid-template-columns: minmax(0, 40rem);
       justify-content: center;
+    }
+
+    &.together {
+      height: calc(100dvh - 20rem);
     }
   }
 }

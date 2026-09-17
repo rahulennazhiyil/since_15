@@ -18,6 +18,7 @@ import { CaptureCoordinator } from '../../core/booth/capture-coordinator';
 import { CoupleSession } from '../../core/booth/couple-session';
 import { SoundService } from '../../core/booth/sound.service';
 import { CameraService } from '../../core/camera/camera.service';
+import { AppError, toAppError } from '../../core/errors/app-error';
 import { ERROR_COPY } from '../../core/errors/error-copy';
 import { FilterCatalog } from '../../core/filters/filter-catalog.service';
 import type { FilterDefinition } from '../../core/filters/filter.model';
@@ -25,9 +26,13 @@ import { THUMBNAIL_EDGE, ThumbnailSource } from '../../core/filters/thumbnail-so
 import { LAYOUTS, PAIR_LAYOUT_CHOICES, TOGETHER_LAYOUT_CHOICES, type LayoutId } from '../../core/photo/layouts';
 import { ProfileService } from '../../core/profile/profile.service';
 import { RoomService } from '../../core/room/room.service';
+import { NO_BACKGROUND_ID } from '../../core/scene/background-catalog';
+import type { BackgroundFx, PersonRole } from '../../core/scene/scene.model';
+import { BackgroundStore } from '../../core/storage/background-store';
 import { Announcer } from '../../shared/a11y/announcer.service';
 import { Button } from '../../shared/ui/button';
 import { Chip } from '../../shared/ui/chip';
+import { Icon } from '../../shared/ui/icon';
 import { IconButton } from '../../shared/ui/icon-button';
 import { Sheet } from '../../shared/ui/sheet';
 import { Spinner } from '../../shared/ui/spinner';
@@ -47,6 +52,10 @@ import { FlashOverlay } from '../booth/flash-overlay';
 import { ModeSelector } from '../booth/mode-selector';
 import { PhotoReveal } from '../booth/photo-reveal';
 import { FilterSelector } from '../filters/filter-selector';
+import { ArrangeSheet } from '../scene/arrange-sheet';
+import { BackgroundSheet } from '../scene/background-sheet';
+import { ParticipantBadge } from '../scene/participant-badge';
+import { SceneStage, type PlacementEvent } from '../scene/scene-stage';
 import { IdentityForm } from '../profile/identity-form';
 import { ParticipantView } from './participant-view';
 import { RoomHeader } from './room-header';
@@ -72,6 +81,7 @@ const BURST_INTERVAL_MS = 650;
     RouterLink,
     Button,
     Chip,
+    Icon,
     IconButton,
     Sheet,
     Spinner,
@@ -88,6 +98,10 @@ const BURST_INTERVAL_MS = 650;
     PhotoViewer,
     IdentityForm,
     ParticipantView,
+    ParticipantBadge,
+    SceneStage,
+    BackgroundSheet,
+    ArrangeSheet,
     RoomHeader,
     RoomWaiting,
   ],
@@ -112,6 +126,8 @@ export class RoomPage {
 
   private readonly localView = viewChild(CameraView);
   private readonly partnerView = viewChild(ParticipantView);
+  private readonly stage = viewChild(SceneStage);
+  protected readonly backgrounds = inject(BackgroundStore);
 
   /** True once the user has passed the identity gate (or already had one). */
   protected readonly identified = signal(false);
@@ -122,6 +138,14 @@ export class RoomPage {
   protected readonly sessionId = uid('s');
   protected readonly viewing = signal<PhotoMeta | null>(null);
   protected readonly activitiesOpen = signal(false);
+  protected readonly backgroundOpen = signal(false);
+  protected readonly arrangeOpen = signal(false);
+  protected readonly customTiles = signal<{ id: string; url: string }[]>([]);
+  protected readonly importing = signal(false);
+  protected readonly selfRole = computed<PersonRole>(() => (this.room.isHost() ? 'host' : 'guest'));
+  protected readonly partnerName = computed(() => this.room.partner()?.name ?? 'Your person');
+  protected readonly sceneActive = computed(() => this.sceneSync.scene().backgroundId !== NO_BACKGROUND_ID);
+  private lastPlacementSentAt = 0;
 
   protected readonly normalizedCode = computed(() => this.code().toUpperCase());
   protected readonly terminal = computed(() => ['ended', 'not-found', 'full'].includes(this.room.status()));
@@ -179,12 +203,18 @@ export class RoomPage {
     effect(() => {
       const local = this.localView();
       const partner = this.partnerView();
+      const stage = this.stage();
       const blobs = this.media.peer.blobs();
       untracked(() => {
-        if (!local) return;
+        if (!local && !stage) return;
         this.couple.bind({
-          grabLocal: () => local.grabFrame(environment.photo.maxLongEdge),
-          grabRemote: () => (partner ? partner.grabFrame(environment.photo.maxLongEdge) : Promise.reject(new Error('no partner view'))),
+          grabLocal: () => (stage ? stage.grabFrame(environment.photo.maxLongEdge) : local!.grabFrame(environment.photo.maxLongEdge)),
+          grabRemote: () =>
+            stage
+              ? stage.grabRemoteFrame(environment.photo.maxLongEdge)
+              : partner
+                ? partner.grabFrame(environment.photo.maxLongEdge)
+                : Promise.reject(new Error('no partner view')),
           blobs: () => blobs,
           isHost: () => this.room.isHost(),
           toLocalTime: (t) => this.media.toLocalTime(t),
@@ -249,10 +279,37 @@ export class RoomPage {
     // Filter thumbnails follow the live camera while shooting; pause on the reveal.
     effect(() => {
       const view = this.localView();
+      const stage = this.stage();
       const live = this.camera.isLive();
       const reviewing = this.couple.phase() === 'review';
-      if (view && live && !reviewing) this.thumbs.start(() => view.grabFrame(THUMBNAIL_EDGE), THUMBNAIL_REFRESH_MS);
+      const grab = stage ? (edge: number) => stage.grabFrame(edge) : view ? (edge: number) => view.grabFrame(edge) : null;
+      if (grab && live && !reviewing) this.thumbs.start(() => grab(THUMBNAIL_EDGE), THUMBNAIL_REFRESH_MS);
       else this.thumbs.stop();
+    });
+
+    // The user's own background photos, as picker tiles.
+    void this.backgrounds.load();
+    effect(() => {
+      const mine = this.backgrounds.mine();
+      void Promise.all(mine.map(async (b) => ({ id: b.id, url: (await this.backgrounds.urlFor(b.id)) ?? '' }))).then((tiles) =>
+        this.customTiles.set(tiles.filter((t) => t.url)),
+      );
+    });
+
+    // Say once why the scene is not available when a device cannot join it.
+    effect(() => {
+      const caps = this.media.peerCaps();
+      const mine = this.media.localSegmentation();
+      untracked(() => {
+        if (caps && !caps.segmentation && mine) this.toast.show(ERROR_COPY['scene-unsupported'].message.replace('This device', 'Your person\u2019s device'), { kind: 'info' });
+        if (caps && !mine) this.toast.error(new AppError('scene-unsupported'));
+      });
+    });
+    effect(() => {
+      const id = [...this.sceneSync.partnerHas()].pop();
+      untracked(() => {
+        if (id && this.sceneSync.scene().backgroundId === id) this.toast.success(`${this.partnerName()} has your background`);
+      });
     });
 
     inject(DestroyRef).onDestroy(() => {
@@ -300,6 +357,54 @@ export class RoomPage {
     }
     this.couple.setLayout(layout);
     this.media.peer.bus()?.send({ type: 'layout', layoutId: layout });
+  }
+
+  // ---- shared scene ---------------------------------------------------------------
+
+  /** Live drags apply at once here and go to the partner a few times a second. */
+  protected onPlacement(event: PlacementEvent): void {
+    const now = performance.now();
+    const send = now - this.lastPlacementSentAt > 80;
+    if (send) this.lastPlacementSentAt = now;
+    this.sceneSync.setPlacement(event.role, event.placement, send);
+  }
+
+  protected onPlacementCommit(event: PlacementEvent): void {
+    this.lastPlacementSentAt = performance.now();
+    this.sceneSync.setPlacement(event.role, event.placement, true);
+  }
+
+  protected onBackground(id: string): void {
+    this.sceneSync.setBackground(id);
+  }
+
+  protected onFx(fx: BackgroundFx): void {
+    this.sceneSync.setFx(fx);
+  }
+
+  protected onArrange(): void {
+    const inputs = this.stage()?.arrangeInputs() ?? [];
+    if (inputs.length) this.sceneSync.arrange(inputs);
+  }
+
+  protected onFlip(event: { role: PersonRole; flip: boolean }): void {
+    const current = this.sceneSync.scene().people[event.role];
+    if (current) this.sceneSync.setPlacement(event.role, { ...current, flip: event.flip });
+  }
+
+  /** "Your photo": store it here, use it, and send it to the partner once. */
+  protected async onUpload(file: File): Promise<void> {
+    if (this.importing()) return;
+    this.importing.set(true);
+    try {
+      const stored = await this.backgrounds.importFile(file);
+      this.sceneSync.setBackground(stored.id);
+      this.toast.show(`Sending your background to ${this.partnerName()}\u2026`, { kind: 'info' });
+    } catch (error) {
+      this.toast.error(toAppError(error, 'photo-failed'));
+    } finally {
+      this.importing.set(false);
+    }
   }
 
   protected toggleMic(): void {
