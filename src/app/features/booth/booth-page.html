@@ -37,33 +37,38 @@
     }
   </div>
 
-  <div class="filters">
-    <app-filter-selector
-      [filters]="catalog.all()"
-      [selectedId]="session.filter().id"
-      [source]="thumbs.bitmap()"
-      [showCreate]="true"
-      (filterChange)="onFilter($event)"
+  <!-- Everything the thumb reaches: filters, modes and the shutter, always on screen. -->
+  <div class="panel">
+    <div class="filters">
+      <app-filter-selector
+        [filters]="catalog.all()"
+        [selectedId]="session.filter().id"
+        [source]="thumbSource()"
+        [showCreate]="true"
+        (filterChange)="onFilter($event)"
+      />
+    </div>
+
+    <app-memory-wall class="wall" [sessionId]="sessionId" (open)="viewing.set($event)" />
+
+    <div class="modes">
+      <app-mode-selector [mode]="session.mode()" [disabled]="session.busy()" (modeChange)="session.setMode($event)" />
+    </div>
+
+    <app-camera-controls
+      [countdown]="session.countdown()"
+      [canFlip]="camera.canFlip()"
+      [disabled]="session.busy() || session.phase() === 'review'"
+      [showBackground]="backgroundsAvailable()"
+      [backgroundActive]="session.sceneEnabled()"
+      [lastPhoto]="lastPhoto()"
+      (shutter)="shutter()"
+      (flip)="camera.flip()"
+      (background)="backgroundOpen.set(true)"
+      (gallery)="viewing.set($event)"
+      (countdownChange)="session.setCountdown($event)"
     />
   </div>
-
-  <app-memory-wall [sessionId]="sessionId" (open)="viewing.set($event)" />
-
-  <div class="modes">
-    <app-mode-selector [mode]="session.mode()" [disabled]="session.busy()" (modeChange)="session.setMode($event)" />
-  </div>
-
-  <app-camera-controls
-    [countdown]="session.countdown()"
-    [canFlip]="camera.canFlip()"
-    [disabled]="session.busy() || session.phase() === 'review'"
-    [showBackground]="backgroundsAvailable()"
-    [backgroundActive]="session.sceneEnabled()"
-    (shutter)="shutter()"
-    (flip)="camera.flip()"
-    (background)="backgroundOpen.set(true)"
-    (countdownChange)="session.setCountdown($event)"
-  />
 
   <app-background-sheet
     [(open)]="backgroundOpen"

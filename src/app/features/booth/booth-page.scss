@@ -1,17 +1,21 @@
 // The booth is always a dark stage, whatever the theme, so the video reads as the
 // subject. Shared components pick up these local tokens automatically.
 :host {
+  --bg: #121014;
   --surface: #26232c;
   --surface-2: rgb(255 255 255 / 0.14);
   --text: #ffffff;
   --text-muted: rgb(255 255 255 / 0.7);
   --border: rgb(255 255 255 / 0.12);
   --shadow-rgb: 0 0 0;
+  // Height of the bottom panel on phones; the stage stops above it.
+  --panel-h: 15.5rem;
 
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   background: #121014;
   color: var(--text);
 }
@@ -34,9 +38,11 @@
   text-shadow: 0 1px 8px rgb(0 0 0 / 0.5);
 }
 
+// Phones: the camera fills the screen and the panel floats over its lower edge,
+// like a camera app, so the shutter never scrolls away.
 .stage {
-  position: relative;
-  flex: 1;
+  position: absolute;
+  inset: 0 0 calc(var(--panel-h) + var(--safe-bottom)) 0;
   display: flex;
   min-height: 0;
 
@@ -44,11 +50,10 @@
     flex: 1;
   }
 
-  // The scene keeps its own aspect ratio inside the available height.
   app-scene-stage {
     flex: 1;
     min-height: 0;
-    padding: var(--space-2) var(--gutter) 0;
+    padding: calc(var(--safe-top) + 4rem) var(--gutter) var(--space-2);
     --radius-scene: var(--radius-lg);
   }
 }
@@ -66,19 +71,41 @@
   animation: fade-in var(--dur-base) var(--ease-out) both;
 }
 
-.filters {
-  padding-top: var(--space-3);
+.panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-top: var(--space-6);
+  background: linear-gradient(to bottom, rgb(18 16 20 / 0), rgb(18 16 20 / 0.92) 30%, #121014);
+}
+
+.wall {
+  display: none;
 }
 
 .modes {
   display: flex;
   justify-content: center;
-  padding: var(--space-3) var(--gutter) 0;
+  padding: var(--space-2) var(--gutter) 0;
 }
 
-// Desktop: the video becomes a framed card instead of filling the viewport.
+// Desktop: the video becomes a framed card; the panel sits below it in the flow.
 @media (min-width: 900px) {
+  :host {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
   .stage {
+    position: relative;
+    inset: auto;
+    flex: 1;
     padding: calc(var(--header-h) + var(--space-2)) var(--gutter) 0;
     justify-content: center;
 
@@ -106,5 +133,15 @@
       border-radius: var(--radius-xl);
       overflow: hidden;
     }
+  }
+
+  .panel {
+    position: static;
+    padding-top: var(--space-3);
+    background: none;
+  }
+
+  .wall {
+    display: grid;
   }
 }

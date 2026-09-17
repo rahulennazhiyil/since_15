@@ -35,7 +35,10 @@
         try {
           var raw = localStorage.getItem('since060815:profile');
           var parsed = raw ? JSON.parse(raw) : null;
-          var theme = parsed && parsed.data && parsed.data.theme;
+          var data = parsed && parsed.data;
+          // A theme the person chose wins; otherwise follow the device (dark -> Night).
+          var theme = data && data.themeExplicit && data.theme;
+          if (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'night';
           if (theme) document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
           /* storage unavailable: default theme */

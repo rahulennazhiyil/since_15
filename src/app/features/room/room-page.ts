@@ -22,7 +22,7 @@ import { AppError, toAppError } from '../../core/errors/app-error';
 import { ERROR_COPY } from '../../core/errors/error-copy';
 import { FilterCatalog } from '../../core/filters/filter-catalog.service';
 import type { FilterDefinition } from '../../core/filters/filter.model';
-import { THUMBNAIL_EDGE, ThumbnailSource } from '../../core/filters/thumbnail-source';
+import { sampleFrame } from '../../core/filters/sample-frame';
 import { LAYOUTS, PAIR_LAYOUT_CHOICES, TOGETHER_LAYOUT_CHOICES, type LayoutId } from '../../core/photo/layouts';
 import { ProfileService } from '../../core/profile/profile.service';
 import { RoomService } from '../../core/room/room.service';
@@ -40,7 +40,7 @@ import { ActivityHost } from '../activities/activity-host';
 import { ToastService } from '../../shared/ui/toast.service';
 import { CustomFilterStore } from '../../core/storage/custom-filter-store';
 import { uid } from '../../shared/utils/id';
-import type { PhotoMeta } from '../../core/storage/photo-store';
+import { PhotoStore, type PhotoMeta } from '../../core/storage/photo-store';
 import { setUpAutoSave } from '../memories/auto-save';
 import { MemoryWall } from '../memories/memory-wall';
 import { PhotoViewer } from '../memories/photo-viewer';
@@ -63,7 +63,6 @@ import { RoomMediaService } from './room-media.service';
 import { RoomWaiting } from './room-waiting';
 import { SceneSync } from './scene-sync.service';
 
-const THUMBNAIL_REFRESH_MS = 3000;
 /** Gap between strip shots in a room; long enough for a visible countdown. */
 const STRIP_INTERVAL_MS = 3000;
 const BURST_INTERVAL_MS = 650;
@@ -133,7 +132,11 @@ export class RoomPage {
   protected readonly identified = signal(false);
   protected readonly starting = signal(false);
   protected readonly countdown = signal<CountdownSeconds>(3);
-  protected readonly thumbs = new ThumbnailSource();
+  /** Filter thumbnails render from a fixed sample scene, never from the live camera. */
+  protected readonly thumbSource = signal<ImageBitmap | null>(null);
+  private readonly photos = inject(PhotoStore);
+  /** Newest photo of this visit, for the gallery button next to the shutter. */
+  protected readonly lastPhoto = computed(() => this.photos.bySession(this.sessionId)[0] ?? null);
   /** Groups this visit's photos on the memory wall. */
   protected readonly sessionId = uid('s');
   protected readonly viewing = signal<PhotoMeta | null>(null);
@@ -276,16 +279,8 @@ export class RoomPage {
       quality: this.couple.photoQuality(),
     }));
 
-    // Filter thumbnails follow the live camera while shooting; pause on the reveal.
-    effect(() => {
-      const view = this.localView();
-      const stage = this.stage();
-      const live = this.camera.isLive();
-      const reviewing = this.couple.phase() === 'review';
-      const grab = stage ? (edge: number) => stage.grabFrame(edge) : view ? (edge: number) => view.grabFrame(edge) : null;
-      if (grab && live && !reviewing) this.thumbs.start(() => grab(THUMBNAIL_EDGE), THUMBNAIL_REFRESH_MS);
-      else this.thumbs.stop();
-    });
+    void this.photos.load();
+    void sampleFrame().then((bitmap) => this.thumbSource.set(bitmap));
 
     // The user's own background photos, as picker tiles.
     void this.backgrounds.load();
@@ -315,7 +310,6 @@ export class RoomPage {
     inject(DestroyRef).onDestroy(() => {
       this.coordinator.detach();
       this.busSubscription?.unsubscribe();
-      this.thumbs.dispose();
       this.camera.stop();
       void this.room.leave();
     });

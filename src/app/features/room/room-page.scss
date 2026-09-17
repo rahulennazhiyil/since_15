@@ -1,4 +1,5 @@
 :host {
+  --bg: #121014;
   --surface: #26232c;
   --surface-2: rgb(255 255 255 / 0.14);
   --text: #ffffff;
@@ -6,11 +7,43 @@
   --border: rgb(255 255 255 / 0.12);
   --shadow-rgb: 0 0 0;
 
+  // Height of the floating bottom panel on phones (filters, options, controls).
+  --panel-h: 19rem;
+
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
   background: #121014;
   color: var(--text);
+}
+
+// Phones in a connected room: the scene fills the screen and the panel floats over its
+// lower edge, like a camera app, so the shutter never scrolls away.
+@media (max-width: 899px) {
+  :host:has(.panel) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .stage:not(.single) {
+    position: absolute;
+    inset: calc(var(--header-h) + var(--safe-top)) 0 calc(var(--panel-h) + var(--safe-bottom)) 0;
+    min-height: 0;
+  }
+
+  .panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    padding-top: var(--space-6);
+    background: linear-gradient(to bottom, rgb(18 16 20 / 0), rgb(18 16 20 / 0.9) 30%, #121014);
+  }
+
+  .wall {
+    display: none;
+  }
 }
 
 .gate {
@@ -54,7 +87,7 @@
     flex-direction: column;
     padding: 0 var(--gutter);
     // Flex space can run out under the rails; the scene always keeps a usable height.
-    min-height: min(24rem, 50dvh);
+    min-height: min(24rem, 40dvh);
 
     app-scene-stage {
       flex: 1;
@@ -114,11 +147,21 @@
 
 .options {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-3) var(--gutter) 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  > * {
+    flex: none;
+  }
 }
 
 .scene-actions {
@@ -135,20 +178,9 @@
 .layouts {
   display: flex;
   gap: var(--space-2);
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
 }
 
-.controls-wrap {
-  position: relative;
-  min-height: calc(var(--shutter) + var(--space-8));
-}
-
+// Only while waiting or looking: no shutter yet, so these float at the bottom left.
 .side-controls {
   position: absolute;
   left: var(--gutter);

@@ -52,8 +52,8 @@ test.describe('solo booth', () => {
 
     // Strip of 3 with the countdown off, via the keyboard
     await page.click('app-mode-selector button:has-text("Strip · 3")');
-    const pill = page.locator('app-camera-controls button.pill');
-    for (let i = 0; i < 4 && (await pill.innerText()).trim() !== 'Off'; i++) await pill.click();
+    const timer = page.locator('app-camera-controls button[aria-label^="Countdown"]');
+    for (let i = 0; i < 4 && (await timer.locator('.badge').innerText()).trim() !== 'Off'; i++) await timer.click();
     await page.keyboard.press('Space');
     await expect(page.locator('app-photo-reveal img')).toBeVisible({ timeout: 20_000 });
     const strip = await page.evaluate(() => {

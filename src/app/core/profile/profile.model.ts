@@ -36,6 +36,8 @@ export interface Profile {
   emoji: string;
   color: string;
   theme: ThemeId;
+  /** False until the person picks a theme; until then the device's light/dark setting decides. */
+  themeExplicit: boolean;
   soundEnabled: boolean;
   lastRoomCode: string | null;
   lastFilterId: string | null;
@@ -48,6 +50,7 @@ export const DEFAULT_PROFILE: Profile = {
   emoji: VIBE_EMOJIS[0],
   color: PROFILE_COLORS[0],
   theme: DEFAULT_THEME,
+  themeExplicit: false,
   soundEnabled: false,
   lastRoomCode: null,
   lastFilterId: null,

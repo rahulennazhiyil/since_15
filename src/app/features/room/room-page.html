@@ -105,16 +105,17 @@
           }
         </div>
 
+        <div class="panel">
         <div class="filters">
           <app-filter-selector
             [filters]="catalog.all()"
             [selectedId]="couple.filter().id"
-            [source]="thumbs.bitmap()"
+            [source]="thumbSource()"
             (filterChange)="onFilter($event)"
           />
         </div>
 
-        <app-memory-wall [sessionId]="sessionId" (open)="viewing.set($event)" />
+        <app-memory-wall class="wall" [sessionId]="sessionId" (open)="viewing.set($event)" />
 
         <div class="options">
           @if (media.together()) {
@@ -136,20 +137,34 @@
             </div>
           }
         </div>
-      }
-    }
 
-    <div class="controls-wrap">
-      @if (room.status() !== 'looking' && room.status() !== 'waiting') {
         <app-camera-controls
           [countdown]="countdown()"
           [canFlip]="camera.canFlip()"
           [disabled]="!canShoot()"
+          [lastPhoto]="lastPhoto()"
           (shutter)="shutter()"
           (flip)="camera.flip()"
+          (gallery)="viewing.set($event)"
           (countdownChange)="countdown.set($event)"
-        />
+        >
+          <button slot="left" appIconButton icon="sparkles" label="Activities" variant="glass" (click)="activitiesOpen.set(true)"></button>
+          <button
+            slot="left"
+            appIconButton
+            [icon]="camera.micEnabled() ? 'mic' : 'mic-off'"
+            [label]="camera.micEnabled() ? 'Mute microphone' : 'Unmute microphone'"
+            variant="glass"
+            [attr.aria-pressed]="!camera.micEnabled()"
+            [disabled]="!camera.hasAudio()"
+            (click)="toggleMic()"
+          ></button>
+        </app-camera-controls>
+        </div>
       }
+    }
+
+    @if (room.status() === 'looking' || room.status() === 'waiting') {
       <div class="side-controls">
         <button appIconButton icon="sparkles" label="Activities" variant="glass" size="lg" (click)="activitiesOpen.set(true)"></button>
         <button
@@ -162,11 +177,11 @@
           [disabled]="!camera.hasAudio()"
           (click)="toggleMic()"
         ></button>
-        @if ((room.status() === 'looking' || room.status() === 'waiting') && camera.canFlip()) {
+        @if (camera.canFlip()) {
           <button appIconButton icon="flip" label="Switch camera" variant="glass" size="lg" (click)="camera.flip()"></button>
         }
       </div>
-    </div>
+    }
 
     @if (viewing(); as p) {
       <app-photo-viewer [photo]="p" (closed)="viewing.set(null)" />

@@ -7,14 +7,14 @@ import { CameraService } from '../../core/camera/camera.service';
 import { AppError, toAppError } from '../../core/errors/app-error';
 import { FilterCatalog } from '../../core/filters/filter-catalog.service';
 import type { FilterDefinition } from '../../core/filters/filter.model';
-import { THUMBNAIL_EDGE, ThumbnailSource } from '../../core/filters/thumbnail-source';
+import { sampleFrame } from '../../core/filters/sample-frame';
 import { ProfileService } from '../../core/profile/profile.service';
 import { NO_BACKGROUND_ID } from '../../core/scene/background-catalog';
 import type { BackgroundFx } from '../../core/scene/scene.model';
 import { SegmentationService } from '../../core/segmentation/segmentation.service';
 import { BackgroundStore } from '../../core/storage/background-store';
 import { CustomFilterStore } from '../../core/storage/custom-filter-store';
-import type { PhotoMeta } from '../../core/storage/photo-store';
+import { PhotoStore, type PhotoMeta } from '../../core/storage/photo-store';
 import { IconButton } from '../../shared/ui/icon-button';
 import { Spinner } from '../../shared/ui/spinner';
 import { ToastService } from '../../shared/ui/toast.service';
@@ -32,8 +32,6 @@ import { CountdownOverlay } from './countdown-overlay';
 import { FlashOverlay } from './flash-overlay';
 import { ModeSelector } from './mode-selector';
 import { PhotoReveal } from './photo-reveal';
-
-const THUMBNAIL_REFRESH_MS = 3000;
 
 /**
  * The solo booth at /booth. Owns the page-level wiring only; the camera lives in
@@ -70,6 +68,8 @@ export class BoothPage {
   protected readonly profile = inject(ProfileService);
   protected readonly catalog = inject(FilterCatalog);
   protected readonly segmentation = inject(SegmentationService);
+  protected readonly backgrounds = inject(BackgroundStore);
+  private readonly photos = inject(PhotoStore);
   private readonly sound = inject(SoundService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -77,16 +77,18 @@ export class BoothPage {
   private readonly cameraView = viewChild(CameraView);
   private readonly stage = viewChild(SceneStage);
   protected readonly starting = signal(false);
-  protected readonly thumbs = new ThumbnailSource();
+  /** Filter thumbnails render from a fixed sample scene, never from the live camera. */
+  protected readonly thumbSource = signal<ImageBitmap | null>(null);
   /** Groups this visit's photos on the memory wall. */
   protected readonly sessionId = uid('s');
   protected readonly viewing = signal<PhotoMeta | null>(null);
   protected readonly backgroundOpen = signal(false);
-  protected readonly backgrounds = inject(BackgroundStore);
   /** Object URLs for the user's own background photos, for the picker tiles. */
   protected readonly customTiles = signal<{ id: string; url: string }[]>([]);
   protected readonly importing = signal(false);
 
+  /** Newest photo of this visit, for the small gallery button next to the shutter. */
+  protected readonly lastPhoto = computed(() => this.photos.bySession(this.sessionId)[0] ?? null);
   /** Backgrounds are offered only where the on-device model can run. */
   protected readonly backgroundsAvailable = computed(() => this.segmentation.supported && this.segmentation.status() !== 'unsupported');
   protected readonly useStage = computed(() => this.session.sceneEnabled() && this.backgroundsAvailable());
@@ -94,6 +96,8 @@ export class BoothPage {
   constructor() {
     // Custom filters join the rail once loaded; kept out of the initial bundle on purpose.
     void inject(CustomFilterStore).load();
+    void this.photos.load();
+    void sampleFrame().then((bitmap) => this.thumbSource.set(bitmap));
     this.session.onTick = () => this.sound.tick();
     this.session.onShutter = () => this.sound.shutter();
     this.session.filter.set(this.catalog.find(this.profile.profile().lastFilterId));
@@ -128,20 +132,7 @@ export class BoothPage {
       quality: 'full',
     }));
 
-    // Thumbnails follow the live camera while shooting and pause on the reveal screen.
-    effect(() => {
-      const grab = this.frameGrabber();
-      const live = this.camera.isLive();
-      const reviewing = this.session.phase() === 'review';
-      if (grab && live && !reviewing) {
-        this.thumbs.start(() => grab(THUMBNAIL_EDGE), THUMBNAIL_REFRESH_MS);
-      } else {
-        this.thumbs.stop();
-      }
-    });
-
     inject(DestroyRef).onDestroy(() => {
-      this.thumbs.dispose();
       this.camera.stop();
     });
   }
@@ -181,6 +172,10 @@ export class BoothPage {
     this.session.setScene({ fx });
   }
 
+  protected onPlacement(event: PlacementEvent): void {
+    this.session.setScene({ people: { [event.role]: event.placement } });
+  }
+
   /** "Your photo": store it on this device and use it straight away. */
   protected async onUpload(file: File): Promise<void> {
     if (this.importing()) return;
@@ -194,10 +189,6 @@ export class BoothPage {
     } finally {
       this.importing.set(false);
     }
-  }
-
-  protected onPlacement(event: PlacementEvent): void {
-    this.session.setScene({ people: { [event.role]: event.placement } });
   }
 
   protected exit(): void {
