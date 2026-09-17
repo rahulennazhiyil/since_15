@@ -522,7 +522,7 @@ These do not block Phases 0 to 4.
    is verified (see Phase 6 notes).
 5. **Hosting.** GitHub Pages from `rahulennazhiyil/since_15` via `.github/workflows/deploy.yml`
    (decided 2026-09-17). Project-site sub-path handled by `--base-href`, `404.html` fallback,
-   bundled fonts and base-relative invite links; verified locally against a Pages-like server.
+   bundled fonts and base-relative invite links. Live at https://rahulennazhiyil.github.io/since_15/ since 2026-09-17; a two-profile room on the live site connected in 0.8 s and produced a byte-identical photo.
 3. **Display wordmark.** Package name is `since060815`. The on-screen wordmark can be the
    same string or a styled variant such as "since 06·08·15". Recommendation: styled variant
    in the decorative serif on the landing page, plain string everywhere else.
