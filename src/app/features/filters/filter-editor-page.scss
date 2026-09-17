@@ -1,0 +1,116 @@
+// Dark stage like the booth so the preview reads as the subject; the editing panel
+// below uses the normal theme surface.
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #121014;
+}
+
+.top {
+  --surface-2: rgb(255 255 255 / 0.14);
+  --text: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(var(--space-3) + var(--safe-top)) var(--gutter) var(--space-3);
+  color: #fff;
+}
+
+.label {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.preview-wrap {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 0 var(--gutter) var(--space-4);
+
+  app-filter-preview {
+    width: 100%;
+    max-width: 56rem;
+    aspect-ratio: 4 / 3;
+    max-height: 42dvh;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+.use-camera {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-8);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.editor {
+  flex: 1;
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+  padding: var(--space-5) var(--gutter) calc(var(--space-8) + var(--safe-bottom));
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+
+  @media (min-width: 900px) {
+    max-width: 56rem;
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--space-8);
+  }
+}
+
+.name input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--text-lg);
+}
+
+app-segmented {
+  justify-self: center;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.panel {
+  min-height: 12rem;
+}
+
+.delete {
+  justify-self: center;
+  color: var(--danger);
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  color: #fff;
+}

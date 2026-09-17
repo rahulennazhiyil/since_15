@@ -1,0 +1,161 @@
+@if (!identified()) {
+  <div class="gate">
+    <div class="card box motion-rise">
+      <p class="eyebrow">You've been invited</p>
+      <h1 class="title-lg">Room {{ normalizedCode() }}</h1>
+      <p class="muted">Tell your person who's joining.</p>
+      <app-identity-form submitLabel="Join the room" (done)="identified.set(true)" />
+    </div>
+  </div>
+} @else if (terminal()) {
+  <div class="gate">
+    <div class="card box center motion-rise">
+      <h1 class="title-lg">{{ terminalCopy().title }}</h1>
+      <p class="muted">{{ terminalCopy().message }}</p>
+      <div class="cluster" style="justify-content: center; margin-top: var(--space-2)">
+        <button appButton (click)="startOver()">Start a room</button>
+        <a appButton variant="ghost" routerLink="/">Back home</a>
+      </div>
+    </div>
+  </div>
+} @else {
+  <app-room-header
+    [code]="normalizedCode()"
+    [status]="room.status()"
+    [participants]="room.participants()"
+    (leave)="leave()"
+  />
+
+  @if (!camera.isLive()) {
+    <app-camera-permission-intro
+      [error]="camera.error()"
+      [starting]="starting() || camera.status() === 'starting'"
+      (start)="startCamera()"
+    />
+  } @else {
+    @switch (room.status()) {
+      @case ('looking') {
+        <div class="gate">
+          <div class="looking motion-rise">
+            <app-spinner size="lg" label="Finding your room" />
+            <p>Finding your room…</p>
+          </div>
+        </div>
+      }
+      @case ('waiting') {
+        <div class="stage single">
+          <app-camera-view class="tile mine" [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="couple.filter()" />
+        </div>
+        <app-room-waiting [code]="normalizedCode()" />
+      }
+      @default {
+        <div class="stage">
+          <app-camera-view class="tile mine" [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="couple.filter()" />
+          @if (room.partner(); as p) {
+            <app-participant-view
+              class="tile"
+              [participant]="p"
+              [stream]="media.peer.remoteStream()"
+              [state]="media.peer.state()"
+              [micOn]="media.partnerMicOn()"
+              (retry)="media.peer.restart()"
+            />
+          } @else {
+            <div class="tile partner away">
+              <span class="small">Your person left the room</span>
+              <span class="small muted">The room stays open in case they come back.</span>
+            </div>
+          }
+          <app-flash-overlay [token]="couple.flashToken()" />
+          <app-countdown-overlay
+            [value]="couple.countdownValue()"
+            [hint]="couple.modeInfo().shots > 1 ? 'Shot ' + (couple.shotIndex() + 1) + ' of ' + couple.modeInfo().shots : 'Together in'"
+            (cancel)="cancelCountdown()"
+          />
+          @if (couple.phase() === 'processing') {
+            <div class="processing"><app-spinner size="lg" label="Making your photo" /><span>Making your photo…</span></div>
+          }
+        </div>
+
+        <div class="filters">
+          <app-filter-selector
+            [filters]="catalog.all()"
+            [selectedId]="couple.filter().id"
+            [source]="thumbs.bitmap()"
+            (filterChange)="onFilter($event)"
+          />
+        </div>
+
+        <app-memory-wall [sessionId]="sessionId" (open)="viewing.set($event)" />
+
+        <div class="options">
+          <app-mode-selector [mode]="couple.mode()" [disabled]="couple.busy()" (modeChange)="setMode($event)" />
+          @if (showLayouts()) {
+            <div class="layouts" role="radiogroup" aria-label="Frame">
+              @for (l of layoutChoices; track l.id) {
+                <button appChip role="radio" [selected]="l.id === couple.layout()" [attr.aria-checked]="l.id === couple.layout()" [disabled]="couple.busy()" (click)="onLayout(l.id)">
+                  {{ l.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <div class="controls-wrap">
+      @if (room.status() !== 'looking' && room.status() !== 'waiting') {
+        <app-camera-controls
+          [countdown]="countdown()"
+          [canFlip]="camera.canFlip()"
+          [disabled]="!canShoot()"
+          (shutter)="shutter()"
+          (flip)="camera.flip()"
+          (countdownChange)="countdown.set($event)"
+        />
+      }
+      <div class="side-controls">
+        <button appIconButton icon="sparkles" label="Activities" variant="glass" size="lg" (click)="activitiesOpen.set(true)"></button>
+        <button
+          appIconButton
+          [icon]="camera.micEnabled() ? 'mic' : 'mic-off'"
+          [label]="camera.micEnabled() ? 'Mute microphone' : 'Unmute microphone'"
+          variant="glass"
+          size="lg"
+          [attr.aria-pressed]="!camera.micEnabled()"
+          [disabled]="!camera.hasAudio()"
+          (click)="toggleMic()"
+        ></button>
+        @if ((room.status() === 'looking' || room.status() === 'waiting') && camera.canFlip()) {
+          <button appIconButton icon="flip" label="Switch camera" variant="glass" size="lg" (click)="camera.flip()"></button>
+        }
+      </div>
+    </div>
+
+    @if (viewing(); as p) {
+      <app-photo-viewer [photo]="p" (closed)="viewing.set(null)" />
+    }
+
+    <app-sheet title="Together" [(open)]="activitiesOpen">
+      <app-activity-host />
+    </app-sheet>
+
+    @if (couple.phase() === 'review' && couple.photo(); as photo) {
+      <app-photo-reveal
+        [photo]="photo"
+        title="Your moment is ready"
+        [filters]="catalog.all()"
+        [filter]="couple.filter()"
+        [thumbSource]="couple.revealThumb()"
+        [layouts]="showLayouts() ? layoutChoices : []"
+        [layoutId]="couple.layout()"
+        [note]="revealNote()"
+        [busy]="couple.recomposing()"
+        (filterChange)="onFilter($event)"
+        (layoutChange)="onLayout($event)"
+        (retake)="couple.retake()"
+        (dismiss)="couple.retake()"
+      />
+    }
+  }
+}

@@ -1,0 +1,359 @@
+:host {
+  display: block;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding: var(--space-8) var(--gutter) var(--space-12);
+}
+
+// Hero -----------------------------------------------------------------------
+
+.hero {
+  display: grid;
+  gap: var(--space-10);
+  align-items: center;
+  padding-block: var(--space-6) var(--space-12);
+
+  @media (min-width: 900px) {
+    grid-template-columns: 1.05fr 1fr;
+    min-height: calc(100dvh - var(--header-h) - var(--space-12));
+    padding-block: var(--space-4) var(--space-16);
+  }
+}
+
+.copy {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 34rem;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.try {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  width: fit-content;
+  transition: color var(--dur-fast) var(--ease-out), gap var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    color: var(--text);
+    gap: var(--space-3);
+  }
+}
+
+// Booth illustration ----------------------------------------------------------
+
+.visual {
+  position: relative;
+  max-width: 34rem;
+  margin-inline: auto;
+  width: 100%;
+  animation: scale-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: 120ms;
+}
+
+.booth {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.booth-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.code {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  letter-spacing: 0.14em;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #6fbf9a;
+  }
+}
+
+.frames {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+
+  &.a {
+    background: var(--frame-a);
+  }
+  &.b {
+    background: var(--frame-b);
+  }
+}
+
+.tag {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.7);
+  color: #2b2622;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+// Abstract person: head + shoulders.
+.person {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 58%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 0 0;
+  background: rgb(43 38 34 / 0.18);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -52%;
+    width: 46%;
+    aspect-ratio: 1;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: rgb(43 38 34 / 0.22);
+  }
+}
+
+.heart {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.rail {
+  display: flex;
+  gap: var(--space-2);
+  overflow: hidden;
+  mask-image: linear-gradient(to right, #000 80%, transparent);
+}
+
+.pill {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+
+  &.on {
+    background: var(--text);
+    color: var(--bg);
+  }
+}
+
+.shutter {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 3px solid var(--text);
+
+  span {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+}
+
+.count {
+  position: absolute;
+  right: -0.5rem;
+  top: 2.75rem;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  box-shadow: var(--shadow-md);
+
+  @media (min-width: 900px) {
+    right: -1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .heart app-icon {
+    animation: pulse-soft 2.4s var(--ease-in-out) 3;
+    animation-delay: 900ms;
+  }
+}
+
+// Points ---------------------------------------------------------------------
+
+.points {
+  display: grid;
+  gap: var(--space-4);
+
+  @media (min-width: 720px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.point {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-2);
+
+  h2 {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  p {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+}
+
+.pt-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+// How ------------------------------------------------------------------------
+
+.how {
+  padding-block: var(--space-20) var(--space-12);
+  display: grid;
+  gap: var(--space-8);
+
+  ol {
+    display: grid;
+    gap: var(--space-6);
+    counter-reset: step;
+
+    @media (min-width: 720px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  li {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+
+  .n {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: var(--text-2xl);
+    color: var(--accent-strong);
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: 700;
+  }
+
+  p {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+}
+
+// Footer ---------------------------------------------------------------------
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-6);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--border);
+
+  nav {
+    display: flex;
+    gap: var(--space-4);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+
+    a:hover {
+      color: var(--text);
+    }
+  }
+
+  p {
+    margin-left: auto;
+  }
+}
+
+.brand {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+
+  span {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.25em;
+    color: var(--accent-strong);
+    letter-spacing: 0;
+  }
+}

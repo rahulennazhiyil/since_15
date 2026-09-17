@@ -1,0 +1,73 @@
+<div class="top">
+  <button appIconButton icon="chevron-left" label="Leave the booth" variant="glass" (click)="exit()"></button>
+  <span class="label">Camera</span>
+  <button
+    appIconButton
+    [icon]="profile.soundEnabled() ? 'sound-on' : 'sound-off'"
+    [label]="profile.soundEnabled() ? 'Turn sounds off' : 'Turn sounds on'"
+    variant="glass"
+    (click)="profile.toggleSound()"
+  ></button>
+</div>
+
+@if (camera.isLive()) {
+  <div class="stage">
+    <app-camera-view [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="session.filter()" />
+    <app-flash-overlay [token]="session.flashToken()" />
+    <app-countdown-overlay
+      [value]="session.countdownValue()"
+      [hint]="session.modeInfo().shots > 1 ? 'Shot ' + (session.shotIndex() + 1) + ' of ' + session.modeInfo().shots : 'Get ready'"
+      (cancel)="session.cancel()"
+    />
+    @if (session.phase() === 'processing') {
+      <div class="processing"><app-spinner size="lg" label="Making your photo" /><span>Making your photo…</span></div>
+    }
+  </div>
+
+  <div class="filters">
+    <app-filter-selector
+      [filters]="catalog.all()"
+      [selectedId]="session.filter().id"
+      [source]="thumbs.bitmap()"
+      [showCreate]="true"
+      (filterChange)="onFilter($event)"
+    />
+  </div>
+
+  <app-memory-wall [sessionId]="sessionId" (open)="viewing.set($event)" />
+
+  <div class="modes">
+    <app-mode-selector [mode]="session.mode()" [disabled]="session.busy()" (modeChange)="session.setMode($event)" />
+  </div>
+
+  <app-camera-controls
+    [countdown]="session.countdown()"
+    [canFlip]="camera.canFlip()"
+    [disabled]="session.busy() || session.phase() === 'review'"
+    (shutter)="shutter()"
+    (flip)="camera.flip()"
+    (countdownChange)="session.setCountdown($event)"
+  />
+
+  @if (session.phase() === 'review' && session.photo(); as photo) {
+    <app-photo-reveal
+      [photo]="photo"
+      [filters]="catalog.all()"
+      [filter]="session.filter()"
+      [thumbSource]="session.revealThumb()"
+      [busy]="session.recomposing()"
+      (filterChange)="onFilter($event)"
+      (retake)="session.retake()"
+      (dismiss)="session.retake()"
+    />
+  }
+  @if (viewing(); as p) {
+    <app-photo-viewer [photo]="p" (closed)="viewing.set(null)" />
+  }
+} @else {
+  <app-camera-permission-intro
+    [error]="camera.error()"
+    [starting]="starting() || camera.status() === 'starting'"
+    (start)="start()"
+  />
+}

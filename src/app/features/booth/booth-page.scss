@@ -1,0 +1,94 @@
+// The booth is always a dark stage, whatever the theme, so the video reads as the
+// subject. Shared components pick up these local tokens automatically.
+:host {
+  --surface: #26232c;
+  --surface-2: rgb(255 255 255 / 0.14);
+  --text: #ffffff;
+  --text-muted: rgb(255 255 255 / 0.7);
+  --border: rgb(255 255 255 / 0.12);
+  --shadow-rgb: 0 0 0;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #121014;
+  color: var(--text);
+}
+
+.top {
+  position: absolute;
+  top: var(--safe-top);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--gutter);
+}
+
+.label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.5);
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+
+  app-camera-view {
+    flex: 1;
+  }
+}
+
+.processing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  font-weight: 600;
+  animation: fade-in var(--dur-base) var(--ease-out) both;
+}
+
+.filters {
+  padding-top: var(--space-3);
+}
+
+.modes {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3) var(--gutter) 0;
+}
+
+// Desktop: the video becomes a framed card instead of filling the viewport.
+@media (min-width: 900px) {
+  .stage {
+    padding: calc(var(--header-h) + var(--space-2)) var(--gutter) 0;
+    justify-content: center;
+
+    // Height-driven so the rail, modes and controls always fit below the frame.
+    app-camera-view {
+      flex: none;
+      height: min(calc(100dvh - 24rem), 540px);
+      aspect-ratio: 16 / 9;
+      max-width: 100%;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+    }
+
+    app-flash-overlay,
+    app-countdown-overlay,
+    .processing {
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+  }
+}

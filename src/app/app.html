@@ -1,0 +1,16 @@
+<a class="skip-link" href="#main">Skip to content</a>
+
+@if (!immersive()) {
+  <app-header />
+}
+
+<main id="main" [class.immersive]="immersive()" tabindex="-1">
+  <router-outlet />
+</main>
+
+@if (!immersive()) {
+  <app-bottom-bar />
+}
+
+<app-toasts />
+<app-live-region />

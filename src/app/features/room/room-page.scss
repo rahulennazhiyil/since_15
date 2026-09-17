@@ -1,0 +1,145 @@
+:host {
+  --surface: #26232c;
+  --surface-2: rgb(255 255 255 / 0.14);
+  --text: #ffffff;
+  --text-muted: rgb(255 255 255 / 0.7);
+  --border: rgb(255 255 255 / 0.12);
+  --shadow-rgb: 0 0 0;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #121014;
+  color: var(--text);
+}
+
+.gate {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) var(--gutter) calc(var(--space-8) + var(--safe-bottom));
+}
+
+.box {
+  display: grid;
+  gap: var(--space-4);
+  width: min(100%, 28rem);
+  padding: var(--space-8) var(--space-6);
+}
+
+.looking {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  color: var(--text-muted);
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 var(--gutter);
+  min-height: 0;
+  grid-template-rows: 1fr 1fr;
+
+  &.single {
+    grid-template-rows: 1fr;
+    max-height: 42dvh;
+  }
+
+  app-flash-overlay,
+  app-countdown-overlay,
+  .processing {
+    left: var(--gutter);
+    right: var(--gutter);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+  }
+}
+
+.tile {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: #1c1a22;
+  min-height: 9rem;
+}
+
+.partner {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  text-align: center;
+  color: var(--text);
+  animation: fade-in var(--dur-slow) var(--ease-out) both;
+
+  &.away {
+    color: var(--text-muted);
+  }
+}
+
+.processing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  font-weight: 600;
+  animation: fade-in var(--dur-base) var(--ease-out) both;
+}
+
+.filters {
+  padding-top: var(--space-3);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--gutter) 0;
+}
+
+.layouts {
+  display: flex;
+  gap: var(--space-2);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.controls-wrap {
+  position: relative;
+  min-height: calc(var(--shutter) + var(--space-8));
+}
+
+.side-controls {
+  position: absolute;
+  left: var(--gutter);
+  bottom: calc(var(--space-5) + var(--safe-bottom));
+  display: flex;
+  gap: var(--space-2);
+}
+
+@media (min-width: 900px) {
+  .stage {
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr 1fr;
+    max-height: calc(100dvh - 20rem);
+
+    &.single {
+      grid-template-columns: minmax(0, 40rem);
+      justify-content: center;
+    }
+  }
+}

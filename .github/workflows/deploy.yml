@@ -1,0 +1,60 @@
+# Builds the app and publishes it to GitHub Pages on every push to main.
+# One-time setup in the repository:
+#   Settings -> Pages -> Source: "GitHub Actions"
+#   Settings -> Secrets and variables -> Actions: SUPABASE_URL, SUPABASE_ANON_KEY,
+#   TURN_USERNAME, TURN_CREDENTIAL (see .env.example)
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Project sites live under https://<user>.github.io/<repo>/. Change to "/" if a
+      # custom domain is attached to the Pages site.
+      BASE_HREF: /${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build with account secrets (Settings -> Secrets and variables -> Actions)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TURN_USERNAME: ${{ secrets.TURN_USERNAME }}
+          TURN_CREDENTIAL: ${{ secrets.TURN_CREDENTIAL }}
+        run: npm run build -- --base-href "$BASE_HREF"
+      - name: Single-page-app fallback for deep links such as /room/ABC123
+        run: |
+          cp dist/since060815/browser/index.html dist/since060815/browser/404.html
+          touch dist/since060815/browser/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/since060815/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

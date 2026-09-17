@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>since060815 · A Photo Booth for People Miles Apart</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="A tiny virtual photo booth for people who wish they were in the same room. Start a private room, send a link, see each other, pick a filter, count down together and keep the photo. Free, no account, nothing uploaded."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#fbf7f2" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="since060815" />
+    <meta property="og:title" content="Miles apart. Still in the same frame." />
+    <meta
+      property="og:description"
+      content="A tiny virtual photo booth for people who wish they were in the same room. Free, private, no account."
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Miles apart. Still in the same frame." />
+    <meta
+      name="twitter:description"
+      content="A tiny virtual photo booth for people who wish they were in the same room. Free, private, no account."
+    />
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+    <script>
+      // Apply the saved theme before first paint so there is no flash.
+      // Key and shape must match core/storage/storage.service.ts.
+      (function () {
+        try {
+          var raw = localStorage.getItem('since060815:profile');
+          var parsed = raw ? JSON.parse(raw) : null;
+          var theme = parsed && parsed.data && parsed.data.theme;
+          if (theme) document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          /* storage unavailable: default theme */
+        }
+      })();
+    </script>
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <app-root></app-root>
+    <noscript>Please enable JavaScript to continue using this application.</noscript>
+  </body>
+</html>

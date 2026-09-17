@@ -1,0 +1,80 @@
+<section class="hero">
+  <div class="copy motion-rise">
+    <p class="eyebrow">A tiny virtual photo booth</p>
+    <h1 class="display">Miles apart.<br /><em>Still in the same frame.</em></h1>
+    <p class="lead">
+      For people who wish they were in the same room. Start a private room, send one link,
+      see each other, count down together, keep the photo.
+    </p>
+    <div class="cta">
+      <a appButton size="lg" routerLink="/room/new">Start a Room</a>
+      <a appButton variant="secondary" size="lg" routerLink="/room/join">Join a Room</a>
+    </div>
+    <a class="try" routerLink="/booth">
+      Try the camera on your own
+      <app-icon name="arrow-right" [size]="18" />
+    </a>
+  </div>
+
+  <div class="visual" aria-hidden="true">
+    <div class="booth">
+      <div class="booth-top">
+        <span class="code">M7K2PQ</span>
+        <span class="status"><i></i>Connected</span>
+      </div>
+      <div class="frames">
+        <div class="frame a">
+          <span class="tag">You</span>
+          <span class="person"></span>
+        </div>
+        <span class="heart"><app-icon name="heart" [size]="22" [filled]="true" /></span>
+        <div class="frame b">
+          <span class="tag">Them</span>
+          <span class="person"></span>
+        </div>
+      </div>
+      <div class="rail">
+        @for (f of filters; track f; let i = $index) {
+          <span class="pill" [class.on]="i === 2">{{ f }}</span>
+        }
+      </div>
+      <div class="shutter"><span></span></div>
+    </div>
+    <span class="count">3</span>
+  </div>
+</section>
+
+<section class="points">
+  @for (p of points; track p.title) {
+    <article class="point card">
+      <span class="pt-icon"><app-icon [name]="p.icon" /></span>
+      <h2>{{ p.title }}</h2>
+      <p>{{ p.text }}</p>
+    </article>
+  }
+</section>
+
+<section class="how">
+  <p class="eyebrow center">How it works</p>
+  <ol>
+    @for (s of steps; track s.n) {
+      <li>
+        <span class="n">{{ s.n }}</span>
+        <h3>{{ s.title }}</h3>
+        <p>{{ s.text }}</p>
+      </li>
+    }
+  </ol>
+  <div class="center">
+    <a appButton size="lg" routerLink="/room/new">Start a Room</a>
+  </div>
+</section>
+
+<footer class="foot">
+  <span class="brand">since<span>060815</span></span>
+  <nav aria-label="Footer">
+    <a routerLink="/privacy">Privacy</a>
+    <a routerLink="/about">About</a>
+  </nav>
+  <p class="muted small">Local first. Private by default.</p>
+</footer>

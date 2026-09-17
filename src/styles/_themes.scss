@@ -1,0 +1,94 @@
+// Colour themes. The active theme is set as html[data-theme]; "soft" is the default.
+// Every colour a component may use is defined here for every theme.
+//
+//   --bg            page background
+//   --surface       cards, sheets, header
+//   --surface-2     subtle inset areas (thumbnail rails, inputs)
+//   --text          primary text
+//   --text-muted    secondary text
+//   --border        hairlines
+//   --accent        primary action / highlight
+//   --accent-strong hover/pressed accent
+//   --accent-soft   tinted backgrounds behind accent content
+//   --on-accent     text on accent
+//   --accent-rgb    accent as r g b for alpha use
+//   --shadow-rgb    shadow colour as r g b
+//   --frame-a/-b    the two "people" tiles in illustrations
+//   --danger        destructive actions
+
+:root,
+html[data-theme='soft'] {
+  color-scheme: light;
+  --bg: #fbf7f2;
+  --surface: #ffffff;
+  --surface-2: #f3ece5;
+  --text: #2b2622;
+  --text-muted: #675e58;
+  --border: rgb(43 38 34 / 0.09);
+  --accent: #d98a9c;
+  --accent-strong: #a85a72;
+  --accent-soft: #f7e5ea;
+  --on-accent: #2b2622;
+  --accent-rgb: 217 138 156;
+  --shadow-rgb: 74 52 44;
+  --frame-a: linear-gradient(135deg, #f6d9d2 0%, #ead1e3 100%);
+  --frame-b: linear-gradient(135deg, #dcd6ea 0%, #f2e2cf 100%);
+  --danger: #c2503f;
+}
+
+html[data-theme='night'] {
+  color-scheme: dark;
+  --bg: #17151c;
+  --surface: #211e29;
+  --surface-2: #2b2735;
+  --text: #f2eef7;
+  --text-muted: #aca6ba;
+  --border: rgb(242 238 247 / 0.09);
+  --accent: #b79ce8;
+  --accent-strong: #c9b3f2;
+  --accent-soft: rgb(183 156 232 / 0.16);
+  --on-accent: #17151c;
+  --accent-rgb: 183 156 232;
+  --shadow-rgb: 0 0 0;
+  --frame-a: linear-gradient(135deg, #3b3350 0%, #4d3f63 100%);
+  --frame-b: linear-gradient(135deg, #2f3550 0%, #4a3a58 100%);
+  --danger: #e57a6a;
+}
+
+html[data-theme='film'] {
+  color-scheme: light;
+  --bg: #efe6d8;
+  --surface: #f8f2e8;
+  --surface-2: #e6dac8;
+  --text: #1a1714;
+  --text-muted: #5f574d;
+  --border: rgb(26 23 20 / 0.10);
+  --accent: #1a1714;
+  --accent-strong: #33302b;
+  --accent-soft: #e3d6c2;
+  --on-accent: #f8f2e8;
+  --accent-rgb: 26 23 20;
+  --shadow-rgb: 60 45 30;
+  --frame-a: linear-gradient(135deg, #e6cfae 0%, #d9b98f 100%);
+  --frame-b: linear-gradient(135deg, #cfc2ad 0%, #b9a88c 100%);
+  --danger: #a8432f;
+}
+
+html[data-theme='dream'] {
+  color-scheme: light;
+  --bg: #f4f1fb;
+  --surface: #ffffff;
+  --surface-2: #ebe6f7;
+  --text: #2a2540;
+  --text-muted: #67608a;
+  --border: rgb(42 37 64 / 0.09);
+  --accent: #9d8ae6;
+  --accent-strong: #6a56c0;
+  --accent-soft: #e9e3fa;
+  --on-accent: #2a2540;
+  --accent-rgb: 157 138 230;
+  --shadow-rgb: 70 56 120;
+  --frame-a: linear-gradient(135deg, #e3dcf8 0%, #f6dcea 100%);
+  --frame-b: linear-gradient(135deg, #d8e6f8 0%, #e7ddf7 100%);
+  --danger: #c2503f;
+}

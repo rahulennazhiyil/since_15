@@ -1,0 +1,78 @@
+@if (draft(); as d) {
+  <header class="top">
+    <button appIconButton icon="chevron-left" label="Back to my filters" variant="glass" (click)="back()"></button>
+    <span class="label">{{ isEdit() ? 'Edit filter' : 'New filter' }}</span>
+    <button appButton size="sm" [disabled]="!d.isValid()" [loading]="saving()" (click)="save()">Save</button>
+  </header>
+
+  <section class="preview-wrap">
+    <app-filter-preview [filter]="d.definition()" [stream]="camera.stream()" [mirrored]="camera.mirrored()">
+      <app-overlay-canvas
+        [overlays]="d.overlays()"
+        [selectedId]="d.selectedOverlayId()"
+        (select)="d.select($event)"
+        (move)="onMove($event)"
+      />
+    </app-filter-preview>
+    @if (!camera.isLive()) {
+      <button class="use-camera" type="button" (click)="useCamera()" [disabled]="camera.status() === 'starting'">
+        @if (camera.status() === 'starting') {
+          <app-spinner size="sm" />
+        } @else {
+          <app-icon name="camera" [size]="16" />
+        }
+        Preview with my camera
+      </button>
+    }
+  </section>
+
+  <section class="editor">
+    <label class="name">
+      <span class="visually-hidden">Filter name</span>
+      <input
+        type="text"
+        placeholder="Name your filter"
+        [value]="d.name()"
+        [attr.maxlength]="maxName"
+        (input)="d.setName($any($event.target).value)"
+      />
+    </label>
+
+    <app-segmented label="Editor section" [options]="tabs" [value]="tab()" (valueChange)="tab.set($event)" />
+
+    <div class="panel">
+      @switch (tab()) {
+        @case ('light') {
+          <app-adjustment-panel [draft]="d" [keys]="lightKeys" />
+        }
+        @case ('color') {
+          <app-adjustment-panel [draft]="d" [keys]="colorKeys" />
+        }
+        @case ('effects') {
+          <app-effects-panel [draft]="d" />
+        }
+        @case ('stickers') {
+          <app-overlay-panel [draft]="d" />
+        }
+      }
+    </div>
+
+    @if (isEdit()) {
+      <button appButton variant="ghost" size="sm" class="delete" (click)="confirmDelete.set(true)">
+        <app-icon name="trash" [size]="16" /> Delete this filter
+      </button>
+    }
+  </section>
+
+  <app-sheet title="Delete this filter?" [(open)]="confirmDelete">
+    <p class="muted" style="margin-bottom: var(--space-5)">
+      Photos you already took keep their look. This only removes the filter from your list.
+    </p>
+    <div class="cluster" style="justify-content: flex-end">
+      <button appButton variant="ghost" (click)="confirmDelete.set(false)">Keep it</button>
+      <button appButton variant="danger" (click)="remove()">Delete</button>
+    </div>
+  </app-sheet>
+} @else {
+  <div class="loading"><app-spinner size="lg" label="Loading filter" /></div>
+}
