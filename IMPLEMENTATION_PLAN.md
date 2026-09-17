@@ -495,6 +495,44 @@ Tasks
 
 ---
 
+## Phase 11 — Shared scene, backgrounds, filters, UI  ✅ (2026-09-17)
+
+Requested after launch: the room showed two separate video boxes, so a real photobooth
+picture was impossible. Delivered in eight verified steps (see ARCHITECTURE.md §21):
+
+1. **Segmentation core**: `core/segmentation/` (MediaPipe selfie segmenter, self-hosted
+   WASM and committed model with pinned hash, pure mask math, fake segmenter, loading
+   service, dev-only `/dev/segmentation` lab). Verified headless: model ready in ~0.5 s,
+   ~16 ms per frame in software, person 255 / background 0 on a test portrait, no
+   third-party requests.
+2. **Scene model + compositor**: `core/scene/` (validated `SceneState`, placements on the
+   person's frame, `autoArrange` that never overlaps, hit testing, deterministic
+   compositor without `ctx.filter`, `ScenePipeline`), `polaroid`/`heart` single-image
+   frames, `PhotoComposer` accepts scene canvases.
+3. **Solo booth stage + built-in backgrounds**: `SceneStage`, `BackgroundSheet`, ten SVG
+   scenes rasterised to JPEG, the booth swaps to the stage when a background is chosen and
+   cuts each shot out at photo quality.
+4. **Custom backgrounds**: IndexedDB v2 `backgrounds` store (guarded upgrade), import
+   (rotate, downscale, hash), "Your photo" tile, Clear my data.
+5. **Room protocol**: validated messages, `caps`, `scene:*`, schedule snapshot,
+   `SceneSync`, mask exchange in `CoupleSession` with local-cutout fallback.
+6. **Room live stage**: one scene instead of two tiles, partner badge, Background and
+   Arrange chips and sheets, live drag sync, own photos shared over the blob channel with
+   acknowledgement, classic fallback when a device cannot segment.
+7. **Filters**: one look applied to the whole scene, background soften/dim, new Booth and
+   Golden hour packs, three new film looks, duplicates folded away (37 presets).
+8. **Polish**: real-model smoke test behind `E2E_REAL_ML=1`, service worker caches `/ml`
+   and `/backgrounds` lazily, documentation.
+
+Verification: 172 unit tests, 12 end-to-end tests (fake segmenter; the shared-scene test
+asserts identical photos on both tabs, frame changes, drag and background sync, and a
+custom background travelling with acknowledgement), production build with no budget
+warnings. Manual checks still open: two real phones on different networks, iOS Safari
+and Android Chrome performance with the real model.
+
+Open follow-ups: worker-based inference if phones struggle, short-lived TURN
+credentials, matching white balance between the two cameras.
+
 ## Sequencing summary
 
 ```
@@ -565,3 +603,6 @@ still needs a real phone or a second network.
 | Privacy | No recording, no collection | No servers of our own; no analytics; Privacy page says so |
 | On device | iOS camera flip and background recovery | Implemented, untested on hardware |
 | On device | Cross-network room (Supabase + STUN/TURN) | Supabase and TURN relay verified in two browser profiles; untested on two devices |
+| Together | One shared scene, both people over one background | Implemented (Phase 11); identical photos verified in two tabs |
+| Together | Backgrounds: built-in and own photos, shared with the partner | Implemented (Phase 11); acknowledgement verified end to end |
+| Together | Works without the model | Classic two tiles on both sides with a friendly note (verified) |

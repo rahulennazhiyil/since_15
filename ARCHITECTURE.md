@@ -607,6 +607,92 @@ locally in two tabs with no accounts.
 
 ---
 
+## 21. Shared scene: segmentation, backgrounds, one picture (Phase 11)
+
+Added 2026-09-17. The room no longer shows two video tiles when both devices can cut
+people out of their cameras; it shows **one scene**: a shared background with both
+people placed on it, live and in the photo. The solo booth gets the same backgrounds.
+
+### 21.1 Person segmentation (`core/segmentation/`)
+
+- `PersonSegmenter` interface: `segment(source, width, height) -> Mask` where a `Mask` is
+  one byte per pixel plus a body bounding box. Two implementations: `MediaPipeSegmenter`
+  (MediaPipe Tasks Vision `ImageSegmenter`, selfie segmenter model, GPU delegate with CPU
+  retry, strictly increasing video timestamps, one call in flight) and `FakeSegmenter`
+  (deterministic soft ellipse) for tests.
+- Everything runs on the device. The WASM runtime is copied from `node_modules` into the
+  build at `/ml/wasm/` (angular.json asset entry); the 250 KB model is committed under
+  `public/ml/models/` with a pinned SHA-256 (`scripts/fetch-ml-models.mjs`,
+  `PROVENANCE.md`). No third-party request happens at runtime; frames never leave the
+  device. Both are cached lazily by the service worker.
+- `mask-ops.ts` is pure integer math (smoothstep threshold, temporal blend, separable box
+  feather, bounding box), so the same input gives the same mask on every device. Masks
+  travel and are stored as PNGs with the mask in the alpha channel (`mask-encode.ts`).
+- `SegmentationService` owns the single instance (lazy, memoised, `prewarm()` on the
+  camera intro). A development-only `localStorage` key `since060815:dev:segmenter`
+  (`fake` | `cpu` | `gpu` | `none`) drives tests; production ignores it.
+
+### 21.2 Scene model and compositor (`core/scene/`)
+
+- `SceneState = { backgroundId, fx: { blur, dim }, layoutId, people: { host?, guest? },
+  front }`. A `Placement` is the centre of the person's *frame* (fractions of the scene),
+  a scale (frame height / scene height) and a flip. Placements never depend on live mask
+  boxes, so the photo does not depend on preview estimates; `autoArrange` computes
+  placements once on the device that pressed it and they are sent as plain data.
+- The scene's aspect comes from the frame layout (`Layout.sceneAspect`: portrait 4:5,
+  square, wide 4:3; `SCENE_SIZES`). Single-image frames (`single`, `polaroid`, `heart`,
+  `strip3/4`, `grid4`) wrap the scene; the pair layouts remain for the classic fallback.
+- `scene-compositor.ts` is pure canvas 2D and never uses `ctx.filter`: cover-cropped
+  background, blur as a deterministic downscale/upscale, dim as a translucent fill, each
+  person drawn through `destination-in` with their mask, back to front, mirror = camera
+  mirroring XOR flip. `ScenePipeline` glues it to segmentation and the background
+  resolver and renders each shot into a scene canvas; `PhotoComposer` then applies the
+  filter **once to the whole scene** and places it in the frame.
+- Backgrounds: ten built-in scenes authored as SVG (`scripts/backgrounds/`) and rasterised
+  with Playwright's Chromium (`scripts/make-backgrounds.mjs`) into `public/backgrounds/`;
+  custom photos are downscaled to the scene size, named by their SHA-256 and stored in the
+  IndexedDB `backgrounds` store (database version 2, guarded upgrade). The
+  `BackgroundResolver` turns ids into bitmaps or URLs for the CSS layer.
+
+### 21.3 Live stage (`features/scene/scene-stage.ts`)
+
+DOM layers: a CSS background (`blur`/`brightness` filters for soften and dim), a
+transparent people canvas, the existing filter preview layers, and the whole-scene CSS
+filter on the wrapper. One segmenter instance is time-sliced between the local camera
+and the partner's received video (local ~24 fps, remote ~12 fps, halved when inference is
+slow). Pixelate and VHS draw the full scene through the filter engine at 15 fps. Drag,
+pinch, wheel and arrow keys move and scale people; the component only reports changes
+and the page owns the state. The scene rectangle is sized from the host box by a
+`ResizeObserver` (container-query units resolve to zero inside a flexed column).
+
+### 21.4 Protocol additions (`core/webrtc/booth-messages.ts`)
+
+Every message type now has a shape validator. New types: `caps` (segmentation,
+mirroring; sent on channel open, on change, and answered once when first heard so
+neither side misses it), per-field `scene:place | scene:background | scene:front |
+scene:frame`, `scene:ask` / `scene:full` (the host answers), `scene:bg-ready`
+(receiver stored a shared custom background), and `capture:scheduled` carries
+`together` plus the host's scene snapshot so both devices compose from exactly the same
+state. Blob metadata gains `kind: frame | mask | background`; the blob channel itself is
+unchanged and stays serial.
+
+### 21.5 Capture in the shared scene
+
+Each side grabs its frame, encodes the 1280 px exchange JPEG, decodes it, cuts itself out
+at photo quality (512 px probe), re-decodes its own mask PNG and sends frame then mask.
+Both sides wait for the partner's frame *and* mask within the existing window; a
+missing mask is cut out locally from the received frame and the photo is marked
+`preview` until a late mask upgrades it. With the same two JPEGs, two mask PNGs, scene
+snapshot, layout and filter, the two photos are byte-identical (verified end to end).
+
+### 21.6 Fallbacks
+
+No support on either device (or an older client that never sends `caps`) -> the classic
+two tiles on both sides with a friendly note. Partner mask missing -> local cutout,
+preview quality. No mask at all -> the raw frame is drawn. Unknown background id -> plain
+surface. The model failing to load after the fact -> `caps` is re-sent as unsupported and
+both sides fall back.
+
 ## 20. Future extension points (not implemented)
 
 | Future feature | Where it plugs in |

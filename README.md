@@ -39,7 +39,14 @@ npm run build        # production build to dist/since060815 (with service worker
 npm test             # unit tests (Vitest, jsdom)
 npm run e2e          # end-to-end tests (Playwright, headless Chromium, fake camera)
 npm run e2e:ui       # the same, in Playwright's UI
+npm run ml:models    # (re)download the on-device segmentation model, verify its hash
+npm run backgrounds  # rasterise scripts/backgrounds/*.svg into public/backgrounds
 ```
+
+`E2E_REAL_ML=1 npx playwright test e2e/ml-smoke.spec.ts` runs the one test that loads the
+real segmentation model; every other test uses a deterministic fake segmenter through the
+development-only key `since060815:dev:segmenter` (`fake` | `cpu` | `gpu` | `none`).
+`/dev/segmentation` (development builds only) shows the live cutout with timings.
 
 ### End-to-end tests
 
@@ -76,6 +83,13 @@ and filters open instantly on repeat visits; rooms always need a network connect
 ## Status
 
 All ten phases are complete: workspace, design system, app shell, landing, privacy and about pages, theme switching, the solo camera booth at `/booth` (permission flow, live preview, countdown, flash, single/strip/burst modes, photo reveal with save and share), and the filter engine with 31 presets, live preview and re-filtering after capture. Custom filters can be created, edited, duplicated and deleted at `/filters` and are stored in IndexedDB. Rooms can be created and joined at `/room/new` and `/room/join` with presence, invite links, capacity and friendly end states, with peer-to-peer video and audio between the two participants, mic mute and camera flip. The couple booth is live: either person presses the shutter, both count down together and both get the same photo in side-by-side, stacked, polaroid, heart, picture-in-picture or strip layouts. Photos are kept in the browser: an "Our moments" strip in the booth and room, a Memories page with viewer, delete and download, and "Clear my data" on the Privacy page. Eight peer-to-peer activities (question cards, this or that, would you rather, message cards, shared drawing, bucket list, countdown, distance) live in a sheet inside the room and, for the solo ones, at `/activities`. The app installs as a PWA, ships an end-to-end suite, and scores 91 / 100 / 100 / 100 on Lighthouse mobile (performance / accessibility / best practices / SEO).
+
+**Shared scene (2026-09-17).** When both devices can run the on-device person segmenter
+(MediaPipe, self-hosted, nothing leaves the device), the room shows one scene instead of
+two tiles: both people cut out over a shared background (ten built-in scenes or your own
+photo, softened or dimmed), moved and resized by either person, with one filter over the
+whole picture. Both devices still produce the same photo. The solo booth gets the same
+backgrounds. Devices that cannot run the model fall back to the classic two tiles.
 See `IMPLEMENTATION_PLAN.md` for what comes next.
 
 ## Signaling setup (production)
