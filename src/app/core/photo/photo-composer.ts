@@ -24,8 +24,8 @@ export function formatPhotoDate(date: Date): string {
 }
 
 export interface ComposeJob {
-  /** Raw (unfiltered) frames in slot order. Reused cyclically if fewer than slots. */
-  sources: ImageBitmap[];
+  /** Raw (unfiltered) frames or composed scenes in slot order. Reused cyclically if fewer than slots. */
+  sources: (ImageBitmap | AnyCanvas)[];
   /** Applied to every source before compositing. Omit for Original. */
   filter?: FilterDefinition;
   layoutId: LayoutId;

@@ -2,6 +2,8 @@ import type { Size } from './image-encode';
 
 export type LayoutId =
   | 'single'
+  | 'polaroid'
+  | 'heart'
   | 'strip3'
   | 'strip4'
   | 'grid4'
@@ -31,12 +33,24 @@ export interface LayoutResult {
   clip?: 'heart';
 }
 
+/** Shape of the shared scene a single-source layout expects to receive. */
+export type SceneAspect = 'portrait' | 'square' | 'wide';
+
+/** Pixel size of the composed scene per aspect; the photo frame scales it as needed. */
+export const SCENE_SIZES: Record<SceneAspect, Size> = {
+  portrait: { width: 1080, height: 1350 },
+  square: { width: 1350, height: 1350 },
+  wide: { width: 1600, height: 1200 },
+};
+
 export interface Layout {
   id: LayoutId;
   name: string;
   shots: number;
   /** Sources per shot: 1 for solo layouts, 2 for couple layouts. */
   people: 1 | 2;
+  /** For single-source layouts: which scene shape fills the slot without cropping people. */
+  sceneAspect?: SceneAspect;
   compute(source: Size): LayoutResult;
 }
 
@@ -61,6 +75,7 @@ const single: Layout = {
   name: 'Single',
   shots: 1,
   people: 1,
+  sceneAspect: 'portrait',
   compute: (source) => ({
     width: source.width,
     height: source.height,
@@ -77,6 +92,7 @@ function strip(id: LayoutId, name: string, shots: number): Layout {
     name,
     shots,
     people: 1,
+    sceneAspect: 'wide',
     compute: () => {
       const slots: Rect[] = [];
       for (let i = 0; i < shots; i++) {
@@ -98,6 +114,7 @@ const grid4: Layout = {
   name: 'Burst',
   shots: 4,
   people: 1,
+  sceneAspect: 'wide',
   compute: () => {
     const WIDTH = 1080;
     const slotWidth = (WIDTH - PAD * 2 - GAP) / 2;
@@ -118,6 +135,39 @@ const grid4: Layout = {
       slots,
       caption: { x: PAD, y: captionY, width: WIDTH - PAD * 2, height: CAPTION },
     };
+  },
+};
+
+/** One square picture on a Polaroid-style card with room to write underneath. */
+const polaroid: Layout = {
+  id: 'polaroid',
+  name: 'Polaroid',
+  shots: 1,
+  people: 1,
+  sceneAspect: 'square',
+  compute: () => {
+    const WIDTH = 1080;
+    const slot = WIDTH - PAD * 2;
+    const captionY = PAD + slot;
+    return {
+      width: WIDTH,
+      height: captionY + CAPTION * 1.6 + PAD / 2,
+      slots: [{ x: PAD, y: PAD, width: slot, height: slot }],
+      caption: { x: PAD, y: captionY, width: slot, height: CAPTION * 1.6 },
+    };
+  },
+};
+
+/** One picture clipped to a heart. */
+const heart: Layout = {
+  id: 'heart',
+  name: 'Heart',
+  shots: 1,
+  people: 1,
+  sceneAspect: 'square',
+  compute: () => {
+    const size = 1200;
+    return { width: size, height: size, clip: 'heart', slots: [{ x: 0, y: 0, width: size, height: size }] };
   },
 };
 
@@ -249,6 +299,8 @@ function pairStrip(id: LayoutId, name: string, shots: number): Layout {
 
 export const LAYOUTS: Record<LayoutId, Layout> = {
   single,
+  polaroid,
+  heart,
   strip3: strip('strip3', 'Strip of 3', 3),
   strip4: strip('strip4', 'Strip of 4', 4),
   grid4,
@@ -261,7 +313,10 @@ export const LAYOUTS: Record<LayoutId, Layout> = {
   pairStrip4: pairStrip('pairStrip4', 'Strip of 4', 4),
 };
 
-/** Couple layouts a user can pick for single-shot modes, in display order. */
+/** Frames for the shared scene (one merged picture), in display order. */
+export const TOGETHER_LAYOUT_CHOICES: readonly LayoutId[] = ['single', 'polaroid', 'heart'];
+
+/** Classic couple layouts (two separate frames) a user can pick for single-shot modes. */
 export const PAIR_LAYOUT_CHOICES: readonly LayoutId[] = ['pairSideBySide', 'pairStacked', 'pairPolaroid', 'pairHeart', 'pairPip'];
 
 /** Heart outline normalised to a unit square, as canvas path commands. */
