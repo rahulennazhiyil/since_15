@@ -43,6 +43,14 @@
   app-camera-view {
     flex: 1;
   }
+
+  // The scene keeps its own aspect ratio inside the available height.
+  app-scene-stage {
+    flex: 1;
+    min-height: 0;
+    padding: var(--space-2) var(--gutter) 0;
+    --radius-scene: var(--radius-lg);
+  }
 }
 
 .processing {
@@ -82,6 +90,14 @@
       max-width: 100%;
       border-radius: var(--radius-xl);
       box-shadow: var(--shadow-lg);
+    }
+
+    app-scene-stage {
+      flex: none;
+      width: 100%;
+      height: min(calc(100dvh - 24rem), 540px);
+      padding: 0;
+      --radius-scene: var(--radius-xl);
     }
 
     app-flash-overlay,

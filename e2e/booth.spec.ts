@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { startCamera, watchConsole } from './helpers';
+import { startCamera, useFakeSegmenter, watchConsole } from './helpers';
 
 test.describe('solo booth', () => {
   test('capture, filter, re-filter, save, strip, memories and cleanup', async ({ page, context }) => {
@@ -81,6 +81,76 @@ test.describe('solo booth', () => {
     await expect(memories.locator('app-memories-page .cell')).toHaveCount(1);
     await memories.reload();
     await expect(memories.locator('app-memories-page .cell')).toHaveCount(1);
+
+    expect(errors).toEqual([]);
+  });
+
+  test('background scene: pick a scene, live cutout, drag, soften, photo carries the background', async ({ page }) => {
+    const errors: string[] = [];
+    watchConsole(page, errors);
+    await useFakeSegmenter(page);
+
+    await page.goto('/booth');
+    await startCamera(page);
+
+    await page.click('button[aria-label="Background"]');
+    await expect(page.locator('app-background-sheet dialog[open]')).toBeVisible();
+    await page.click('app-background-sheet button[role=radio]:has(img[alt="Neon booth"])');
+    await page.keyboard.press('Escape');
+
+    // The plain camera view gives way to the stage with the background layer
+    await expect(page.locator('app-scene-stage')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.querySelector<HTMLElement>('app-scene-stage .bg')!.style.backgroundImage)).toContain('neon');
+    // The person is drawn (opaque in the middle) and the corner is transparent (cut out)
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const c = document.querySelector<HTMLCanvasElement>('app-scene-stage canvas.people')!;
+          const ctx = c.getContext('2d')!;
+          return [ctx.getImageData(Math.floor(c.width / 2), Math.floor(c.height * 0.6), 1, 1).data[3], ctx.getImageData(2, 2, 1, 1).data[3]];
+        }),
+      )
+      .toEqual([255, 0]);
+
+    // Drag the person left; the session's placement follows
+    const box = (await page.locator('app-scene-stage .scene').boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.6, { steps: 6 });
+    await page.mouse.up();
+    const x = await page.evaluate(() => (window as unknown as { ng: { getComponent: (el: Element) => { session: { scene: () => { people: { host: { x: number } } } } } } }).ng.getComponent(document.querySelector('app-booth-page')!).session.scene().people.host.x);
+    expect(x).toBeLessThan(0.36);
+
+    // Soften the background: the CSS layer gets a blur
+    await page.click('button[aria-label="Background"]');
+    await page.locator('app-background-sheet app-slider input[type=range]').first().fill('60');
+    await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => document.querySelector<HTMLElement>('app-scene-stage .bg')!.style.filter)).toContain('blur');
+
+    // Photo: portrait scene, background colour in the corner, person where it was dragged
+    await page.click('button[aria-label="Take photo"]');
+    await expect(page.locator('app-photo-reveal img')).toBeVisible({ timeout: 20_000 });
+    const photo = await page.evaluate(async () => {
+      const img = document.querySelector<HTMLImageElement>('app-photo-reveal img')!;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const px = (fx: number, fy: number) => Array.from(ctx.getImageData(Math.floor(c.width * fx), Math.floor(c.height * fy), 1, 1).data).slice(0, 3);
+      return { w: c.width, h: c.height, corner: px(0.03, 0.03), person: px(0.3, 0.6) };
+    });
+    expect(photo.h).toBeGreaterThan(photo.w);
+    expect(photo.corner[2]).toBeGreaterThan(photo.corner[1] + 20); // purple-ish neon wall, not camera bars
+    expect(photo.person.reduce((a, b) => a + b, 0)).toBeGreaterThan(450); // bright fake-camera pixels
+
+    // Back to "My room" restores the plain camera view
+    await page.click('button[aria-label="Back to camera"]');
+    await page.click('button[aria-label="Background"]');
+    await page.click('app-background-sheet button.none');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('app-camera-view')).toBeVisible();
 
     expect(errors).toEqual([]);
   });

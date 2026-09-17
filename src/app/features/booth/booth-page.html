@@ -11,8 +11,21 @@
 </div>
 
 @if (camera.isLive()) {
-  <div class="stage">
-    <app-camera-view [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="session.filter()" />
+  <div class="stage" [class.scene]="useStage()">
+    @if (useStage()) {
+      <app-scene-stage
+        [localStream]="camera.stream()"
+        [localMirrored]="camera.mirrored()"
+        selfRole="host"
+        [scene]="session.scene()"
+        [filter]="session.filter()"
+        [paused]="session.busy()"
+        [interactive]="!session.busy()"
+        (placementChange)="onPlacement($event)"
+      />
+    } @else {
+      <app-camera-view [stream]="camera.stream()" [mirrored]="camera.mirrored()" [filter]="session.filter()" />
+    }
     <app-flash-overlay [token]="session.flashToken()" />
     <app-countdown-overlay
       [value]="session.countdownValue()"
@@ -44,9 +57,20 @@
     [countdown]="session.countdown()"
     [canFlip]="camera.canFlip()"
     [disabled]="session.busy() || session.phase() === 'review'"
+    [showBackground]="backgroundsAvailable()"
+    [backgroundActive]="session.sceneEnabled()"
     (shutter)="shutter()"
     (flip)="camera.flip()"
+    (background)="backgroundOpen.set(true)"
     (countdownChange)="session.setCountdown($event)"
+  />
+
+  <app-background-sheet
+    [(open)]="backgroundOpen"
+    [selectedId]="session.scene().backgroundId"
+    [fx]="session.scene().fx"
+    (backgroundChange)="onBackground($event)"
+    (fxChange)="onFx($event)"
   />
 
   @if (session.phase() === 'review' && session.photo(); as photo) {

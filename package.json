@@ -16,7 +16,8 @@
     "e2e:fixtures": "node e2e/fixtures/make-fake-camera.mjs",
     "postinstall": "node scripts/write-env.mjs",
     "env": "node scripts/write-env.mjs",
-    "ml:models": "node scripts/fetch-ml-models.mjs"
+    "ml:models": "node scripts/fetch-ml-models.mjs",
+    "backgrounds": "node scripts/make-backgrounds.mjs"
   },
   "private": true,
   "packageManager": "npm@11.6.2",

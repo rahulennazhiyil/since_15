@@ -39,6 +39,20 @@ export class BackgroundResolver {
     return pending;
   }
 
+  private readonly urls = new Map<string, Promise<string | null>>();
+
+  /** A URL the live stage can put in CSS: the asset path for built-ins, an object URL for custom. */
+  url(id: string): Promise<string | null> {
+    if (id === NO_BACKGROUND_ID) return Promise.resolve(null);
+    const hit = this.urls.get(id);
+    if (hit) return hit;
+    const pending: Promise<string | null> = isCustomBackgroundId(id)
+      ? Promise.resolve(this.customSource?.(id) ?? null).then((blob) => (blob ? URL.createObjectURL(blob) : null))
+      : Promise.resolve(findBackground(id) ? new URL(findBackground(id)!.src, document.baseURI).toString() : null);
+    this.urls.set(id, pending.catch(() => null));
+    return this.urls.get(id)!;
+  }
+
   /** Same as resolve but for the small thumbnail of a built-in. */
   async resolveThumb(id: string): Promise<ImageBitmap | null> {
     const def = findBackground(id);

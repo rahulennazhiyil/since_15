@@ -9,16 +9,30 @@ import { IconButton } from '../../shared/ui/icon-button';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, IconButton],
   template: `
-    <button
-      type="button"
-      class="pill"
-      [attr.aria-label]="'Countdown: ' + countdownLabel() + '. Tap to change.'"
-      [disabled]="disabled()"
-      (click)="countdownChange.emit(nextCountdown())"
-    >
-      <app-icon name="timer" [size]="18" />
-      <span>{{ countdownLabel() }}</span>
-    </button>
+    <div class="left">
+      @if (showBackground()) {
+        <button
+          appIconButton
+          icon="image"
+          label="Background"
+          variant="glass"
+          size="lg"
+          [class.active]="backgroundActive()"
+          [disabled]="disabled()"
+          (click)="background.emit()"
+        ></button>
+      }
+      <button
+        type="button"
+        class="pill"
+        [attr.aria-label]="'Countdown: ' + countdownLabel() + '. Tap to change.'"
+        [disabled]="disabled()"
+        (click)="countdownChange.emit(nextCountdown())"
+      >
+        <app-icon name="timer" [size]="18" />
+        <span>{{ countdownLabel() }}</span>
+      </button>
+    </div>
 
     <button
       type="button"
@@ -51,6 +65,16 @@ import { IconButton } from '../../shared/ui/icon-button';
       gap: var(--space-4);
       padding: var(--space-4) var(--gutter) calc(var(--space-5) + var(--safe-bottom));
     }
+    .left {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--space-2);
+      justify-self: end;
+    }
+    .left .active {
+      box-shadow: 0 0 0 2px var(--accent);
+    }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -64,7 +88,6 @@ import { IconButton } from '../../shared/ui/icon-button';
       font-size: var(--text-sm);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      justify-self: end;
     }
     .pill:disabled,
     .shutter:disabled {
@@ -102,9 +125,13 @@ export class CameraControls {
   readonly countdown = input.required<CountdownSeconds>();
   readonly canFlip = input(false);
   readonly disabled = input(false);
+  /** Shows the background picker button (hidden when the device cannot cut people out). */
+  readonly showBackground = input(false);
+  readonly backgroundActive = input(false);
 
   readonly shutter = output<void>();
   readonly flip = output<void>();
+  readonly background = output<void>();
   readonly countdownChange = output<CountdownSeconds>();
 
   protected readonly countdownLabel = computed(

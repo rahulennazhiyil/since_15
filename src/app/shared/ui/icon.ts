@@ -3,6 +3,12 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 /** Stroke icons on a 24 px grid. Add an entry here; never inline SVG in templates. */
 const ICONS = {
   home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+  image: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M3 16l5-5 4 4 3-3 6 6 M15.5 9.5a1 1 0 1 0 0-.01',
+  layers: 'M12 3l9 5-9 5-9-5 9-5z M3 12l9 5 9-5 M3 16l9 5 9-5',
+  swap: 'M7 16V4 M3 8l4-4 4 4 M17 8v12 M13 16l4 4 4-4',
+  wand: 'M15 4l1.5 1.5 M19 8l1.5 1.5 M17 3v2 M21 7h-2 M4 20l10-10 2 2L6 22z M14 10l2-2',
+  frame: 'M4 4h16v16H4z M8 4v16 M16 4v16 M4 8h16 M4 16h16',
+  move: 'M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4',
   camera:
     'M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   heart:

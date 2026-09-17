@@ -1,23 +1,29 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { BoothSession } from '../../core/booth/booth-session';
 import { SoundService } from '../../core/booth/sound.service';
 import { CameraService } from '../../core/camera/camera.service';
+import { AppError } from '../../core/errors/app-error';
 import { FilterCatalog } from '../../core/filters/filter-catalog.service';
 import type { FilterDefinition } from '../../core/filters/filter.model';
 import { THUMBNAIL_EDGE, ThumbnailSource } from '../../core/filters/thumbnail-source';
 import { ProfileService } from '../../core/profile/profile.service';
+import { NO_BACKGROUND_ID } from '../../core/scene/background-catalog';
+import type { BackgroundFx } from '../../core/scene/scene.model';
+import { SegmentationService } from '../../core/segmentation/segmentation.service';
+import { CustomFilterStore } from '../../core/storage/custom-filter-store';
+import type { PhotoMeta } from '../../core/storage/photo-store';
 import { IconButton } from '../../shared/ui/icon-button';
 import { Spinner } from '../../shared/ui/spinner';
 import { ToastService } from '../../shared/ui/toast.service';
-import { CustomFilterStore } from '../../core/storage/custom-filter-store';
 import { uid } from '../../shared/utils/id';
-import type { PhotoMeta } from '../../core/storage/photo-store';
+import { FilterSelector } from '../filters/filter-selector';
 import { setUpAutoSave } from '../memories/auto-save';
 import { MemoryWall } from '../memories/memory-wall';
 import { PhotoViewer } from '../memories/photo-viewer';
-import { FilterSelector } from '../filters/filter-selector';
+import { BackgroundSheet } from '../scene/background-sheet';
+import { SceneStage, type PlacementEvent } from '../scene/scene-stage';
 import { CameraControls } from './camera-controls';
 import { CameraPermissionIntro } from './camera-permission-intro';
 import { CameraView } from './camera-view';
@@ -30,7 +36,8 @@ const THUMBNAIL_REFRESH_MS = 3000;
 
 /**
  * The solo booth at /booth. Owns the page-level wiring only; the camera lives in
- * CameraService and the capture sequence in BoothSession.
+ * CameraService and the capture sequence in BoothSession. With a background chosen the
+ * plain camera view gives way to the scene stage, which cuts the person out live.
  */
 @Component({
   selector: 'app-booth-page',
@@ -38,6 +45,8 @@ const THUMBNAIL_REFRESH_MS = 3000;
   providers: [BoothSession],
   imports: [
     CameraView,
+    SceneStage,
+    BackgroundSheet,
     CameraControls,
     CameraPermissionIntro,
     CountdownOverlay,
@@ -59,16 +68,23 @@ export class BoothPage {
   protected readonly session = inject(BoothSession);
   protected readonly profile = inject(ProfileService);
   protected readonly catalog = inject(FilterCatalog);
+  protected readonly segmentation = inject(SegmentationService);
   private readonly sound = inject(SoundService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
   private readonly cameraView = viewChild(CameraView);
+  private readonly stage = viewChild(SceneStage);
   protected readonly starting = signal(false);
   protected readonly thumbs = new ThumbnailSource();
   /** Groups this visit's photos on the memory wall. */
   protected readonly sessionId = uid('s');
   protected readonly viewing = signal<PhotoMeta | null>(null);
+  protected readonly backgroundOpen = signal(false);
+
+  /** Backgrounds are offered only where the on-device model can run. */
+  protected readonly backgroundsAvailable = computed(() => this.segmentation.supported && this.segmentation.status() !== 'unsupported');
+  protected readonly useStage = computed(() => this.session.sceneEnabled() && this.backgroundsAvailable());
 
   constructor() {
     // Custom filters join the rail once loaded; kept out of the initial bundle on purpose.
@@ -82,6 +98,14 @@ export class BoothPage {
       if (error) this.toast.error(error);
     });
 
+    // If the model turns out not to run here, fall back to the plain camera and say so once.
+    effect(() => {
+      if (this.segmentation.status() === 'unsupported' && this.session.sceneEnabled()) {
+        this.session.setScene({ backgroundId: NO_BACKGROUND_ID });
+        this.toast.error(new AppError('scene-unsupported'));
+      }
+    });
+
     setUpAutoSave(this.session.photo, () => ({
       sessionId: this.sessionId,
       roomCode: null,
@@ -92,11 +116,11 @@ export class BoothPage {
 
     // Thumbnails follow the live camera while shooting and pause on the reveal screen.
     effect(() => {
-      const view = this.cameraView();
+      const grab = this.frameGrabber();
       const live = this.camera.isLive();
       const reviewing = this.session.phase() === 'review';
-      if (view && live && !reviewing) {
-        this.thumbs.start(() => view.grabFrame(THUMBNAIL_EDGE), THUMBNAIL_REFRESH_MS);
+      if (grab && live && !reviewing) {
+        this.thumbs.start(() => grab(THUMBNAIL_EDGE), THUMBNAIL_REFRESH_MS);
       } else {
         this.thumbs.stop();
       }
@@ -108,21 +132,43 @@ export class BoothPage {
     });
   }
 
+  /** Whichever view is showing the camera right now. */
+  private frameGrabber(): ((maxLongEdge?: number) => Promise<ImageBitmap>) | null {
+    const stage = this.stage();
+    if (stage) return (edge) => stage.grabFrame(edge);
+    const view = this.cameraView();
+    if (view) return (edge) => view.grabFrame(edge);
+    return null;
+  }
+
   protected async start(): Promise<void> {
     this.starting.set(true);
     await this.camera.start({ audio: false });
     this.starting.set(false);
+    if (this.backgroundsAvailable()) this.segmentation.prewarm();
   }
 
   protected async shutter(): Promise<void> {
-    const view = this.cameraView();
-    if (!view || !this.camera.isLive() || this.session.busy()) return;
-    await this.session.capture(() => view.grabFrame(environment.photo.maxLongEdge));
+    const grab = this.frameGrabber();
+    if (!grab || !this.camera.isLive() || this.session.busy()) return;
+    await this.session.capture(() => grab(environment.photo.maxLongEdge));
   }
 
   protected onFilter(filter: FilterDefinition): void {
     this.session.setFilter(filter);
     this.profile.update({ lastFilterId: filter.id });
+  }
+
+  protected onBackground(id: string): void {
+    this.session.setBackground(id);
+  }
+
+  protected onFx(fx: BackgroundFx): void {
+    this.session.setScene({ fx });
+  }
+
+  protected onPlacement(event: PlacementEvent): void {
+    this.session.setScene({ people: { [event.role]: event.placement } });
   }
 
   protected exit(): void {

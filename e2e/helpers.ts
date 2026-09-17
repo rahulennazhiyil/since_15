@@ -1,7 +1,10 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 
-/** Emitted by the tests' own getImageData pixel checks, not by the app. */
-const HARNESS_NOISE = /willReadFrequently/;
+/**
+ * Not app problems: the tests' own getImageData pixel checks, and the one informational
+ * line MediaPipe's WASM prints through console.warn when it creates its GPU context.
+ */
+const HARNESS_NOISE = /willReadFrequently|gl_context\.cc.*OpenGL error checking is disabled/;
 
 /** Collects console errors/warnings so every test can assert a clean console. */
 export function watchConsole(page: Page, sink: string[], tag = ''): void {
@@ -11,6 +14,14 @@ export function watchConsole(page: Page, sink: string[], tag = ''): void {
     }
   });
   page.on('pageerror', (e) => sink.push(`${tag ? `[${tag}] ` : ''}pageerror: ${e.message}`));
+}
+
+/**
+ * Makes the app use the deterministic fake person segmenter (dev builds only), so scene
+ * tests do not depend on the ML model or a GPU. Call before the first navigation.
+ */
+export async function useFakeSegmenter(page: Page): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem('since060815:dev:segmenter', 'fake'));
 }
 
 /** Clicks the "Turn on camera" intro and waits for real frames. */

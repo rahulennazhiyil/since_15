@@ -9,6 +9,9 @@ import { THUMBNAIL_EDGE } from '../filters/thumbnail-source';
 import { createCanvas, fitWithin } from '../photo/image-encode';
 import type { LayoutId } from '../photo/layouts';
 import { DEFAULT_FRAME, PhotoComposer, formatPhotoDate } from '../photo/photo-composer';
+import { NO_BACKGROUND_ID } from '../scene/background-catalog';
+import { ScenePipeline } from '../scene/scene-pipeline.service';
+import { DEFAULT_SCENE, SOLO_PLACEMENT, applyScenePatch, type SceneState } from '../scene/scene.model';
 
 export type BoothMode = 'single' | 'strip3' | 'strip4' | 'burst';
 export type CountdownSeconds = 0 | 3 | 5 | 10;
@@ -60,12 +63,19 @@ export type FrameGrab = () => Promise<ImageBitmap>;
 @Injectable()
 export class BoothSession {
   private readonly composer = inject(PhotoComposer);
+  private readonly pipeline = inject(ScenePipeline);
   private readonly urls = new ObjectUrlPool();
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   private cancelled = false;
   /** Resolves the wait currently in progress so cancel() returns control immediately. */
   private pendingResolve: (() => void) | null = null;
   private lastBitmaps: ImageBitmap[] = [];
+  /** One mask per captured frame (null when the frame was not cut out). */
+  private lastMasks: (ImageBitmap | null)[] = [];
+
+  /** Background and placement for the solo scene; `none` means the plain camera view. */
+  readonly scene = signal<SceneState>({ ...DEFAULT_SCENE, people: { host: SOLO_PLACEMENT }, front: 'host' });
+  readonly sceneEnabled = computed(() => this.scene().backgroundId !== NO_BACKGROUND_ID);
 
   readonly mode = signal<BoothMode>('single');
   readonly countdown = signal<CountdownSeconds>(3);
@@ -109,6 +119,17 @@ export class BoothSession {
     if (this.phase() === 'review' && this.lastBitmaps.length > 0) void this.recompose();
   }
 
+  /** Changes background, effects or placement; on the reveal screen the photo is re-rendered. */
+  setScene(patch: Partial<SceneState>): void {
+    if (this.busy()) return;
+    this.scene.update((scene) => applyScenePatch(scene, patch));
+    if (this.phase() === 'review' && this.lastBitmaps.length > 0) void this.recompose();
+  }
+
+  setBackground(backgroundId: string): void {
+    this.setScene({ backgroundId });
+  }
+
   async capture(grab: FrameGrab): Promise<void> {
     if (this.busy()) return;
     this.cancelled = false;
@@ -132,7 +153,10 @@ export class BoothSession {
         this.phase.set('capturing');
         this.flashToken.update((n) => n + 1);
         this.onShutter?.();
-        this.lastBitmaps.push(await grab());
+        const frame = await grab();
+        this.lastBitmaps.push(frame);
+        // Cut the person out at photo quality; a failed mask falls back to the raw frame.
+        this.lastMasks.push(this.sceneEnabled() ? await this.pipeline.maskForFrame(frame).then((m) => m?.bitmap ?? null, () => null) : null);
       }
 
       this.phase.set('processing');
@@ -174,8 +198,15 @@ export class BoothSession {
 
   private async composeCurrent(): Promise<void> {
     const info = this.modeInfo();
+    // With a background the scene is rendered first; the frame then wraps that picture.
+    const sources = this.sceneEnabled()
+      ? await this.pipeline.renderShots(
+          this.lastBitmaps.map((frame, i) => ({ people: [{ role: 'host' as const, frame, mask: this.lastMasks[i] ?? null }] })),
+          { ...this.scene(), layoutId: info.layout },
+        )
+      : this.lastBitmaps;
     const composed = await this.composer.compose({
-      sources: this.lastBitmaps,
+      sources,
       filter: this.filter(),
       layoutId: info.layout,
       frame: { ...DEFAULT_FRAME, subcaption: formatPhotoDate(new Date()) },
@@ -259,6 +290,8 @@ export class BoothSession {
   private releaseBitmaps(): void {
     this.lastBitmaps.forEach((b) => b.close?.());
     this.lastBitmaps = [];
+    this.lastMasks.forEach((m) => m?.close?.());
+    this.lastMasks = [];
     this.revealThumb()?.close?.();
     this.revealThumb.set(null);
   }
