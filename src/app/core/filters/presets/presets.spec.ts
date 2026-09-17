@@ -24,6 +24,22 @@ describe('PRESET_FILTERS', () => {
     }
   });
 
+  it('every preset except Original changes something, and no two presets are the same look', () => {
+    const looks = new Map<string, string>();
+    for (const f of PRESET_FILTERS) {
+      const changes = !isNeutralAdjustments(f.adjustments) || !isNeutralEffects(f.effects) || f.overlays.length > 0;
+      expect(changes || f.id === ORIGINAL_FILTER_ID, f.id).toBe(true);
+      const look = JSON.stringify({ a: f.adjustments, e: f.effects, o: f.overlays });
+      expect(looks.get(look), `${f.id} duplicates ${looks.get(look)}`).toBeUndefined();
+      looks.set(look, f.id);
+    }
+  });
+
+  it('keeps the ids the end-to-end tests and old photos rely on', () => {
+    const ids = new Set(PRESET_FILTERS.map((f) => f.id));
+    for (const id of ['original', 'film', 'pixel', 'hearts', 'mono', 'disposable', 'together']) expect(ids.has(id), id).toBe(true);
+  });
+
   it('is plain JSON and survives a round trip', () => {
     for (const f of PRESET_FILTERS) {
       expect(JSON.parse(JSON.stringify(f))).toEqual(f);

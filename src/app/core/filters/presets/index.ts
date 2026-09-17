@@ -6,7 +6,11 @@ const ov = (partial: Omit<Overlay, 'opacity' | 'rotation'> & Partial<Pick<Overla
   ...partial,
 });
 
-/** The built-in collection. Adding a filter is adding an entry; order is display order. */
+/**
+ * The built-in collection. Adding a filter is adding an entry; order is display order.
+ * Every look here is meant to read clearly at thumbnail size and differ from its
+ * neighbours; near-duplicates were folded together on purpose.
+ */
 export const PRESET_FILTERS: readonly FilterDefinition[] = [
   // Natural ----------------------------------------------------------------
   createFilter({ id: ORIGINAL_FILTER_ID, name: 'Original', category: 'natural' }),
@@ -14,31 +18,61 @@ export const PRESET_FILTERS: readonly FilterDefinition[] = [
     id: 'soft',
     name: 'Soft',
     category: 'natural',
-    adjustments: { contrast: 0.94, saturation: 0.92, shadows: 0.2, highlights: 0.15 },
+    adjustments: { contrast: 0.9, saturation: 0.88, brightness: 1.04, shadows: 0.3, highlights: 0.18, tint: 0.06 },
   }),
   createFilter({
     id: 'warm',
     name: 'Warm',
     category: 'natural',
-    adjustments: { temperature: 0.45, saturation: 1.05, brightness: 1.03 },
+    adjustments: { temperature: 0.5, saturation: 1.06, brightness: 1.03 },
   }),
   createFilter({
     id: 'cool',
     name: 'Cool',
     category: 'natural',
-    adjustments: { temperature: -0.45, saturation: 0.98, contrast: 1.03 },
+    adjustments: { temperature: -0.5, saturation: 0.96, contrast: 1.05 },
   }),
   createFilter({
     id: 'bright',
     name: 'Bright',
     category: 'natural',
-    adjustments: { exposure: 0.25, contrast: 0.97, saturation: 1.08, shadows: 0.15 },
+    adjustments: { exposure: 0.3, contrast: 0.96, saturation: 1.1, shadows: 0.15 },
   }),
   createFilter({
     id: 'fade',
-    name: 'Fade',
+    name: 'Matte',
     category: 'natural',
-    adjustments: { fade: 0.55, saturation: 0.85 },
+    adjustments: { fade: 0.7, saturation: 0.8, contrast: 1.02 },
+  }),
+
+  // Booth ------------------------------------------------------------------
+  createFilter({
+    id: 'booth-strip',
+    name: 'Booth Strip',
+    category: 'booth',
+    adjustments: { saturation: 0, contrast: 1.38, brightness: 1.06, shadows: 0.05 },
+    effects: { grain: 0.28, vignette: 0.22 },
+  }),
+  createFilter({
+    id: 'korean-booth',
+    name: 'Seoul Booth',
+    category: 'booth',
+    adjustments: { brightness: 1.1, contrast: 0.9, saturation: 0.9, shadows: 0.32, highlights: 0.12, tint: 0.1 },
+    effects: { glow: 0.18 },
+  }),
+  createFilter({
+    id: 'disposable',
+    name: 'Disposable',
+    category: 'booth',
+    adjustments: { contrast: 1.15, saturation: 1.12, temperature: 0.22, exposure: 0.18 },
+    effects: { grain: 0.42, vignette: 0.38, dateStamp: true },
+  }),
+  createFilter({
+    id: 'instant-print',
+    name: 'Instant Print',
+    category: 'booth',
+    adjustments: { fade: 0.32, sepia: 0.12, temperature: 0.22, contrast: 1.05, saturation: 0.92, highlights: 0.15 },
+    effects: { vignette: 0.32, grain: 0.2, lightLeak: 0.12 },
   }),
 
   // Vintage ----------------------------------------------------------------
@@ -46,36 +80,73 @@ export const PRESET_FILTERS: readonly FilterDefinition[] = [
     id: 'film',
     name: 'Film',
     category: 'vintage',
-    adjustments: { contrast: 1.08, saturation: 0.82, temperature: 0.25, fade: 0.2, shadows: 0.1 },
-    effects: { grain: 0.35, vignette: 0.3 },
+    adjustments: { contrast: 1.1, saturation: 0.82, temperature: 0.28, fade: 0.18, shadows: 0.1 },
+    effects: { grain: 0.38, vignette: 0.3 },
   }),
   createFilter({
     id: 'retro',
     name: 'Retro',
     category: 'vintage',
-    adjustments: { sepia: 0.3, saturation: 1.15, contrast: 1.1, temperature: 0.3, hue: -6 },
-    effects: { vignette: 0.35, grain: 0.2 },
+    adjustments: { sepia: 0.35, saturation: 1.25, contrast: 1.14, temperature: 0.35, hue: -8 },
+    effects: { vignette: 0.4, grain: 0.22 },
   }),
   createFilter({
     id: 'polaroid',
     name: 'Polaroid',
     category: 'vintage',
-    adjustments: { fade: 0.35, contrast: 1.05, saturation: 0.9, temperature: 0.15, tint: 0.12, highlights: 0.2 },
-    effects: { vignette: 0.2, lightLeak: 0.25 },
+    adjustments: { fade: 0.38, contrast: 1.05, saturation: 0.9, temperature: 0.15, tint: 0.14, highlights: 0.22 },
+    effects: { vignette: 0.2, lightLeak: 0.28 },
+  }),
+  createFilter({
+    id: 'portra',
+    name: 'Portrait Film',
+    category: 'vintage',
+    adjustments: { temperature: 0.22, tint: 0.06, saturation: 0.9, contrast: 0.98, shadows: 0.16, highlights: 0.16 },
+    effects: { grain: 0.18 },
+  }),
+  createFilter({
+    id: 'cinestill',
+    name: 'Night Film',
+    category: 'vintage',
+    adjustments: { temperature: -0.12, tint: -0.1, hue: 3, saturation: 1.12, contrast: 1.12, shadows: 0.08 },
+    effects: { grain: 0.3, glow: 0.22 },
+  }),
+  createFilter({
+    id: 'slide',
+    name: 'Faded Slide',
+    category: 'vintage',
+    adjustments: { fade: 0.5, saturation: 0.72, temperature: 0.32, hue: -4, contrast: 1.04 },
+    effects: { grain: 0.35, vignette: 0.42 },
   }),
   createFilter({
     id: 'old-camera',
     name: 'Old Camera',
     category: 'vintage',
-    adjustments: { sepia: 0.45, contrast: 0.9, fade: 0.3, blur: 0.4 },
-    effects: { grain: 0.55, vignette: 0.55 },
+    adjustments: { sepia: 0.5, contrast: 0.9, fade: 0.3, blur: 0.4 },
+    effects: { grain: 0.58, vignette: 0.58 },
+  }),
+
+  // Golden hour ------------------------------------------------------------
+  createFilter({
+    id: 'golden',
+    name: 'Golden',
+    category: 'golden',
+    adjustments: { temperature: 0.55, saturation: 1.1, exposure: 0.1, shadows: 0.15 },
+    effects: { glow: 0.25, lightLeak: 0.2 },
   }),
   createFilter({
-    id: 'dusty',
-    name: 'Dusty',
-    category: 'vintage',
-    adjustments: { fade: 0.45, saturation: 0.7, temperature: 0.35, contrast: 0.95 },
-    effects: { grain: 0.7, vignette: 0.25 },
+    id: 'late-sun',
+    name: 'Late Sun',
+    category: 'golden',
+    adjustments: { temperature: 0.7, tint: 0.1, contrast: 1.08, saturation: 1.05, exposure: -0.05 },
+    effects: { vignette: 0.28 },
+  }),
+  createFilter({
+    id: 'honey',
+    name: 'Honey',
+    category: 'golden',
+    adjustments: { temperature: 0.5, sepia: 0.15, brightness: 1.04, contrast: 0.98, highlights: 0.2 },
+    effects: { glow: 0.35 },
   }),
 
   // Dreamy -----------------------------------------------------------------
@@ -97,20 +168,14 @@ export const PRESET_FILTERS: readonly FilterDefinition[] = [
     id: 'cloudy',
     name: 'Cloudy',
     category: 'dreamy',
-    adjustments: { fade: 0.4, temperature: -0.2, saturation: 0.8, brightness: 1.04 },
+    adjustments: { fade: 0.4, temperature: -0.25, saturation: 0.78, brightness: 1.04 },
     effects: { glow: 0.3 },
-  }),
-  createFilter({
-    id: 'pastel',
-    name: 'Pastel',
-    category: 'dreamy',
-    adjustments: { saturation: 0.75, brightness: 1.08, contrast: 0.85, tint: 0.2, shadows: 0.35 },
   }),
   createFilter({
     id: 'romance',
     name: 'Romance',
     category: 'dreamy',
-    adjustments: { temperature: 0.3, tint: 0.3, saturation: 0.95, contrast: 0.95, shadows: 0.2 },
+    adjustments: { temperature: 0.3, tint: 0.32, saturation: 0.95, contrast: 0.95, shadows: 0.2 },
     effects: { glow: 0.4, vignette: 0.2, lightLeak: 0.15 },
   }),
 
@@ -119,27 +184,21 @@ export const PRESET_FILTERS: readonly FilterDefinition[] = [
     id: 'mono',
     name: 'Mono',
     category: 'mono',
-    adjustments: { saturation: 0, contrast: 1.05 },
-  }),
-  createFilter({
-    id: 'classic',
-    name: 'Classic',
-    category: 'mono',
-    adjustments: { saturation: 0, contrast: 1.12, fade: 0.1, shadows: 0.1 },
-    effects: { grain: 0.3, vignette: 0.25 },
+    adjustments: { saturation: 0, contrast: 1.08, fade: 0.08 },
+    effects: { grain: 0.2 },
   }),
   createFilter({
     id: 'high-contrast',
     name: 'High Contrast',
     category: 'mono',
-    adjustments: { saturation: 0, contrast: 1.45, brightness: 1.02 },
+    adjustments: { saturation: 0, contrast: 1.5, brightness: 1.02 },
   }),
   createFilter({
     id: 'film-noir',
     name: 'Film Noir',
     category: 'mono',
-    adjustments: { saturation: 0, contrast: 1.3, brightness: 0.92 },
-    effects: { vignette: 0.7, grain: 0.4 },
+    adjustments: { saturation: 0, contrast: 1.3, brightness: 0.9 },
+    effects: { vignette: 0.72, grain: 0.4 },
   }),
 
   // Fun --------------------------------------------------------------------
@@ -156,13 +215,6 @@ export const PRESET_FILTERS: readonly FilterDefinition[] = [
     category: 'fun',
     adjustments: { saturation: 1.15, contrast: 1.1 },
     effects: { pixelate: 0.35 },
-  }),
-  createFilter({
-    id: 'disposable',
-    name: 'Disposable',
-    category: 'fun',
-    adjustments: { contrast: 1.12, saturation: 1.1, temperature: 0.2, exposure: 0.1 },
-    effects: { grain: 0.4, vignette: 0.3, dateStamp: true },
   }),
   createFilter({
     id: 'flash',

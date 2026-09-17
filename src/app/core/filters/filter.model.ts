@@ -1,8 +1,10 @@
-export type FilterCategory = 'natural' | 'vintage' | 'dreamy' | 'mono' | 'fun' | 'couple' | 'custom';
+export type FilterCategory = 'natural' | 'booth' | 'vintage' | 'golden' | 'dreamy' | 'mono' | 'fun' | 'couple' | 'custom';
 
 export const FILTER_CATEGORIES: readonly { id: FilterCategory; name: string }[] = [
   { id: 'natural', name: 'Natural' },
+  { id: 'booth', name: 'Booth' },
   { id: 'vintage', name: 'Vintage' },
+  { id: 'golden', name: 'Golden hour' },
   { id: 'dreamy', name: 'Dreamy' },
   { id: 'mono', name: 'Black & White' },
   { id: 'fun', name: 'Fun' },
