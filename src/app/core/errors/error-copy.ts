@@ -76,6 +76,10 @@ export const ERROR_COPY: Record<AppErrorCode, ErrorCopy> = {
     message: 'Something went wrong while making your picture. Take another?',
     action: 'Retake',
   },
+  'scene-unsupported': {
+    title: 'The shared scene needs a newer device',
+    message: 'This device can’t cut you out of your background yet, so you’ll appear side by side instead.',
+  },
   'storage-failed': {
     title: 'Couldn’t save that',
     message: 'Your browser storage is full or unavailable. You can still download photos.',

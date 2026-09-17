@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { environment } from '../environments/environment';
 import { cameraSupportGuard } from './core/permissions/camera-support.guard';
 
 /**
@@ -77,6 +78,18 @@ export const routes: Routes = [
     title: 'About',
     loadComponent: () => import('./features/about/about').then((m) => m.About),
   },
+  // Development only: live cutout diagnostics for the on-device segmentation model.
+  ...(environment.production
+    ? []
+    : [
+        {
+          path: 'dev/segmentation',
+          title: 'Segmentation lab',
+          data: { immersive: true },
+          canActivate: [cameraSupportGuard],
+          loadComponent: () => import('./features/dev/segmentation-lab').then((m) => m.SegmentationLab),
+        },
+      ]),
   {
     path: '**',
     title: 'Not found',

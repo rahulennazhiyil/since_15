@@ -49,10 +49,20 @@ Machine constraints that shaped the choice:
 ```
 @supabase/supabase-js   signaling transport (production, Phase 6)
 idb                     IndexedDB wrapper (added in Phase 4)
+@mediapipe/tasks-vision on-device person segmentation for the shared scene (Phase 11)
 ```
 
 Nothing else. Every other capability (camera, canvas, WebRTC, filters, storage) is
 platform API wrapped in project code.
+
+`@mediapipe/tasks-vision` is loaded with a dynamic `import()` only when a camera page
+needs backgrounds. Its WASM files are copied from `node_modules` into the build at
+`/ml/wasm/` (angular.json asset entry) and the 250 KB selfie segmenter model is committed
+under `public/ml/models/` with a pinned hash (`scripts/fetch-ml-models.mjs`,
+`PROVENANCE.md`). Nothing is fetched from a third party at runtime; frames never leave the
+device. The only file that imports the library is `core/segmentation/mediapipe-segmenter.ts`;
+everything else depends on the `PersonSegmenter` interface, which a deterministic
+`FakeSegmenter` also implements for tests.
 
 Dev dependencies added: `@playwright/test` (E2E and visual checks), `fake-indexeddb` (store tests), `@fontsource-variable/manrope` and `@fontsource/instrument-serif` (font files copied into `public/fonts`, no runtime code), `@angular/pwa` (schematic, Phase 10).
 

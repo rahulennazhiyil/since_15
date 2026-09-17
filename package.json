@@ -15,7 +15,8 @@
     "e2e:ui": "playwright test --ui",
     "e2e:fixtures": "node e2e/fixtures/make-fake-camera.mjs",
     "postinstall": "node scripts/write-env.mjs",
-    "env": "node scripts/write-env.mjs"
+    "env": "node scripts/write-env.mjs",
+    "ml:models": "node scripts/fetch-ml-models.mjs"
   },
   "private": true,
   "packageManager": "npm@11.6.2",
@@ -27,6 +28,7 @@
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
     "@angular/service-worker": "^21.2.0",
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@supabase/supabase-js": "^2.116.0",
     "idb": "^8.0.3",
     "rxjs": "~7.8.0",

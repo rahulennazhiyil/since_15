@@ -16,6 +16,7 @@ export type AppErrorCode =
   | 'invalid-room-code'
   | 'photo-failed'
   | 'storage-failed'
+  | 'scene-unsupported'
   | 'unknown';
 
 /**

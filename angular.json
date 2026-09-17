@@ -27,9 +27,16 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "vision_wasm_{internal,nosimd_internal}.*",
+                "input": "node_modules/@mediapipe/tasks-vision/wasm",
+                "output": "ml/wasm"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
